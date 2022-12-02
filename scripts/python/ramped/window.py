@@ -14,7 +14,7 @@ class EditorWindow(QMainWindow):
         
 
         self.ui.editor.setup_parm(parm)
-        self.ui.editor.on_borders_changed = self.on_boders_chaned
+        self.ui.editor.on_borders_changed = self.on_boders_changed
         self.top_line = hou.qt.InputField(hou.qt.InputField.FloatType, 1)
         
         self.top_line.setWidth(100)
@@ -38,7 +38,7 @@ class EditorWindow(QMainWindow):
         self.ui.editor.set_borders(self.ui.editor.bottom_border, value[0])
         self.ui.editor.update()
 
-    def on_boders_chaned(self, bottom: float, top: float) -> None:
+    def on_boders_changed(self, bottom: float, top: float) -> None:
         self.bottom_line.setValue(bottom)
         self.top_line.setValue(top)
 
