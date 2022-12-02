@@ -1,0 +1,4 @@
+{
+    "path": "path_to_package",
+    "load_package_once": true
+}

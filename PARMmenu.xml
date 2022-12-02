@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<menuDocument>
+    <menu>
+      <addScriptItem id="ie_ramp_editor">
+        <parent>root_menu</parent>
+        <insertBefore>revert_to_prev_val</insertBefore>
+        <label>Ramp Editor</label>
+        <context>
+          <expression><![CDATA[
+          import ramped
+          return ramped.is_float_ramp(kwargs["parms"])          
+          ]]></expression>
+        </context>
+        <scriptCode><![CDATA[
+import ramped
+ramped.show_ramp_editor(kwargs["parms"][0])
+]]></scriptCode>
+      </addScriptItem> 
+
+    </menu>
+</menuDocument>
