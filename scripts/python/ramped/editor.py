@@ -5,13 +5,21 @@ from typing import Callable
 import hou
 from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt
 from PySide2.QtGui import (QBrush, QColor, QContextMenuEvent, QMouseEvent,
-                           QPainter, QPen, QResizeEvent)
+                           QPainter, QPen, QResizeEvent, QFocusEvent)
 from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGraphicsEllipseItem
 
 from .curve import BezierCurve
 from .logger import logger
 from .settings import ADD_MARKER_RADIUS, ADD_MARKER_COLOR
 
+
+class ContextMenu(QMenu):
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        self.setAttribute(Qt.WA_NoMouseReplay)
+        super().mousePressEvent(event)
+                
+    
 
 class RampEditor(QGraphicsView):
 
@@ -126,21 +134,27 @@ class RampEditor(QGraphicsView):
         return super().mouseMoveEvent(event)   
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        logger.debug(f"Editor mouse event: {event.source()} {event.isAccepted()} {event.flags()}")
         if event.buttons() == Qt.LeftButton and self.curve.hovered_control is None:
             scene_pos = self.mapToScene(event.pos())
             ramp_pos = scene_pos.x() / self.curve.scene_width
             self.curve.add_knot_to_curve(ramp_pos)
-
             
-        return super().mousePressEvent(event)     
+        return super().mousePressEvent(event)
+
+    def focusInEvent(self, event: QFocusEvent) -> None:
+        logger.debug("Focus In")
+        return super().focusInEvent(event)     
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-        menu = QMenu()
+        menu = ContextMenu(self)
         menu.setStyleSheet(hou.qt.styleSheet())
         
         menu.addAction("Set")
         menu.addAction("Get")
-        menu.exec_(event.globalPos())    
+        menu.addSeparator()
+        menu.addAction("Test")
+        menu.popup(event.globalPos())
         
 
 

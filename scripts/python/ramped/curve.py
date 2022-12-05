@@ -100,6 +100,8 @@ class BezierKnot:
 
         self.clamp_by_line: bool = True
 
+        self.is_selected = False
+
         self.set_scene_positions()
 
     @staticmethod

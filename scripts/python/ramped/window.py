@@ -1,3 +1,4 @@
+from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt
 from PySide2.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QWidget
 from PySide2.QtCore import QFile
 from .ui import Ui_RampEditorWindow
@@ -27,6 +28,8 @@ class EditorWindow(QMainWindow):
         self.bottom_line.editingFinished.connect(self.set_bottom_line)
         self.ui.bottom_line.setLayout(QHBoxLayout())
         self.ui.bottom_line.layout().addWidget(self.bottom_line)
+
+        self.ui.central_widget.setFocusPolicy(Qt.NoFocus)
 
         self.setWindowTitle("Ramp Editor")
 

@@ -38,6 +38,8 @@ class PointControl(QGraphicsItem):
         self.hovered_pen = QPen(QColor(0, 0, 0), 3)
 
         self.is_hovered = False
+        self.is_selected = False
+        self.is_selectable = False
 
         self.current_brush = self.brush
         self.current_pen = self.pen
@@ -56,21 +58,38 @@ class PointControl(QGraphicsItem):
         self.on_mouse_release: Callable[[PointControl, bool], None] = lambda control, has_moved: None 
         self.on_hovered: Callable[[PointControl, bool], None] = lambda control, state: None
         self.on_double_click: Callable[[PointControl], None] = lambda control: None
-        
-    def _set_hovered(self, is_hovered: bool):
+        self.on_selected: Callable[[PointControl], None] = lambda control: None
+
+    def _set_active_paint(self) -> None:
+        self.current_brush = self.hovered_brush
+        self.current_pen = self.hovered_pen
+        self.current_radius = self.radius * HOVERED_SCALE
+
+    def _set_normal_paint(self) -> None:
+        self.current_brush = self.brush
+        self.current_pen = self.pen
+        self.current_radius = self.radius             
+
+
+    def _set_hovered(self, is_hovered: bool) -> None:
         self.is_hovered = is_hovered
         if is_hovered:
-            self.current_brush = self.hovered_brush
-            self.current_pen = self.hovered_pen
-            self.current_radius = self.radius * HOVERED_SCALE
-        else:
-            self.current_brush = self.brush
-            self.current_pen = self.pen
-            self.current_radius = self.radius
+            self._set_active_paint()
+        elif not self.is_selected:
+            self._set_normal_paint()
 
         self.on_hovered(self, is_hovered)
-
         self.update()
+
+    def set_selected(self, is_selected: bool) -> None:
+        if not self.is_selectable:
+            self.is_selected = False
+            return
+        self.is_selected = is_selected
+        if is_selected:
+            self._set_active_paint()
+        elif not self.is_hovered:
+            self._set_normal_paint()
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = None) -> None:
 
@@ -90,7 +109,8 @@ class PointControl(QGraphicsItem):
         logger.debug("Enter hover")
 
     def hoverLeaveEvent(self, event: QGraphicsSceneHoverEvent) -> None:
-        self._set_hovered(False)
+        if not self.is_selected:
+            self._set_hovered(False)
         logger.debug("Leave hover")
 
     def set_pos_notification(self, enable: bool):
@@ -103,6 +123,9 @@ class PointControl(QGraphicsItem):
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         logger.debug("Mouse press")
         self.set_pos_notification(True)
+        if not self.is_selected:
+            self.set_selected(True)
+            self.on_selected(self)
         self.on_mouse_press(self)
         return super().mousePressEvent(event)
 
