@@ -10,7 +10,7 @@ from PySide2.QtCore import QLineF, QPointF, Qt
 from PySide2.QtGui import QColor, QPen, QBrush, QPainterPath
 from PySide2.QtWidgets import QGraphicsLineItem, QGraphicsScene, QGraphicsPathItem, QGraphicsView
 
-from .control import PointControl
+from .control import PointControl, ControlStyle
 from .logger import logger
 from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN
 
@@ -48,13 +48,13 @@ class BezierKnot:
         self.handles_pen.setStyle(Qt.DashLine)  
         self.handles_pen.setDashPattern([5, 4])   
 
-        self.knot_point_control: PointControl = PointControl(position, 8)
+        self.knot_point_control: PointControl = PointControl(position, 6, ControlStyle.SQUARE)
         self.knot_point_control.on_move = self.on_move_knot
         self.knot_point_control.on_mouse_release = self.finish_move_in_scene
         self.knot_point_control.on_hovered = self.on_hovered
 
         if in_offset is not None:
-            self.in_point_control: PointControl = PointControl(position + in_offset, 7)
+            self.in_point_control: PointControl = PointControl(position + in_offset, 5)
             self.in_point_control.on_move = functools.partial(self.on_move_control, KnotControl.IN)
             self.in_point_control.on_mouse_release = self.finish_move_in_scene
             self.in_point_control.on_hovered = self.on_hovered
@@ -66,7 +66,7 @@ class BezierKnot:
             self.in_handle: QGraphicsLineItem = None
 
         if out_offset is not None:
-            self.out_point_control: PointControl = PointControl(position + out_offset, 7)
+            self.out_point_control: PointControl = PointControl(position + out_offset, 5)
             self.out_point_control.on_move = functools.partial(self.on_move_control, KnotControl.OUT)
             self.out_point_control.on_mouse_release = self.finish_move_in_scene
             self.out_point_control.on_hovered = self.on_hovered
@@ -323,8 +323,6 @@ class BezierKnot:
         length = qpoint_length(opposite_offset)
         dir = offset * -1.0
         qpoint_normalize(dir)
-
-        logger.debug(f"offset: {dir} * {length}")
 
         self.set_control_scene_offset(opposite_control, dir * length)
         self.move_control(opposite_control, self.scene_position)

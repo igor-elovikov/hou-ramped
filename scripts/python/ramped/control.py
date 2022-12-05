@@ -11,11 +11,16 @@ from PySide2.QtWidgets import (QGraphicsItem, QGraphicsRectItem,
 
 from .logger import logger
 from .settings import HOVERED_SCALE
+from enum import Enum, auto
+
+class ControlStyle(Enum):
+    CIRCLE = auto()
+    SQUARE = auto() 
 
 
 class PointControl(QGraphicsItem):
 
-    def __init__(self, position: QPointF, radius: float) -> None:
+    def __init__(self, position: QPointF, radius: float, style: ControlStyle = ControlStyle.CIRCLE) -> None:
         super().__init__(None)
         self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable)
         self.setAcceptHoverEvents(True)
@@ -40,6 +45,7 @@ class PointControl(QGraphicsItem):
         self.last_pos = position
         self.move_offset = QPointF(0, 0)
         self.setPos(self.last_pos)
+        self.style = style
 
         self.has_moved = False
         self.last_flags: QGraphicsItem.GraphicsItemFlags = self.flags()
@@ -69,7 +75,11 @@ class PointControl(QGraphicsItem):
 
         painter.setBrush(self.current_brush)
         painter.setPen(self.current_pen)
-        painter.drawEllipse(QPointF(0, 0), self.current_radius, self.current_radius)
+        if self.style is ControlStyle.CIRCLE:
+            painter.drawEllipse(QPointF(0, 0), self.current_radius, self.current_radius)
+        else:
+            rect_size = self.current_radius * 2
+            painter.drawRect(-self.current_radius, -self.current_radius, rect_size, rect_size)
 
     def boundingRect(self) -> QRectF:
         return self.bounding_rect
