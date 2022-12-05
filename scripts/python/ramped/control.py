@@ -55,6 +55,7 @@ class PointControl(QGraphicsItem):
         self.on_mouse_press: Callable[[PointControl], None] = lambda control: None
         self.on_mouse_release: Callable[[PointControl, bool], None] = lambda control, has_moved: None 
         self.on_hovered: Callable[[PointControl, bool], None] = lambda control, state: None
+        self.on_double_click: Callable[[PointControl], None] = lambda control: None
         
     def _set_hovered(self, is_hovered: bool):
         self.is_hovered = is_hovered
@@ -115,6 +116,11 @@ class PointControl(QGraphicsItem):
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         self.move_offset = event.lastScenePos() - event.scenePos()
         return super().mouseMoveEvent(event)
+
+    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        self.on_double_click(self)
+        return super().mouseDoubleClickEvent(event)
+
     
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: Any) -> Any:
         if (change == QGraphicsItem.GraphicsItemChange.ItemPositionChange):

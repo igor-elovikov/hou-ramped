@@ -33,6 +33,10 @@ def qpoint_normalize(point: QPointF) -> None:
     point.setX(point.x() / length)
     point.setY(point.y() / length)
 
+def qpoint_normalized(point: QPointF) -> QPointF:
+    length: float = qpoint_length(point)
+    return point / length 
+
 class BezierKnot:
 
     def __init__(self, curve: BezierCurve, index: int, position: QPointF, in_offset: Optional[QPointF], out_offset: Optional[QPointF]) -> None:
@@ -52,6 +56,7 @@ class BezierKnot:
         self.knot_point_control.on_move = self.on_move_knot
         self.knot_point_control.on_mouse_release = self.finish_move_in_scene
         self.knot_point_control.on_hovered = self.on_hovered
+        self.knot_point_control.on_double_click = self.on_double_click
 
         if in_offset is not None:
             self.in_point_control: PointControl = PointControl(position + in_offset, 5)
@@ -100,6 +105,66 @@ class BezierKnot:
     @staticmethod
     def get_opposite_control(control: KnotControl) -> KnotControl:
         return KnotControl.IN if control is KnotControl.OUT else KnotControl.OUT
+
+    def set_all_handles_visibility(self, visible: bool) -> None:
+        if self.in_handle is not None:
+            self.in_handle.setVisible(visible)
+        if self.out_handle is not None:
+            self.out_handle.setVisible(visible)
+        if self.in_point_control is not None:
+            self.in_point_control.setVisible(visible)
+        if self.out_point_control is not None:
+            self.out_point_control.setVisible(visible)
+
+    def set_type(self, knot_type: KnotType) -> None:
+        if knot_type is KnotType.SMOOTH and self.type is not KnotType.SMOOTH:
+            prev_knot = self.curve.prev_knot(self)
+            next_knot = self.curve.next_knot(self)
+
+            prev_knot_pos = prev_knot.position if prev_knot is not None else self.position
+            next_knot_pos = next_knot.position if next_knot is not None else self.position
+
+            gradient = next_knot_pos - prev_knot_pos
+            gradient = gradient / gradient.x()
+            
+            #FIXME: can be improved
+            if prev_knot is not None:
+                prev_out_pos = prev_knot.position + prev_knot.out_offset
+                ratio = (.5 * (self.position.x() - prev_out_pos.x()) ) 
+                self.in_offset = -gradient * ratio 
+
+            if next_knot is not None:
+                next_in_pos = next_knot.position + next_knot.in_offset
+                ratio = ((.5 * (next_in_pos.x() - self.position.x()) ))
+                self.out_offset = gradient * ratio
+
+            self.set_all_handles_visibility(True)
+            self.set_scene_positions()
+
+            self.type = KnotType.SMOOTH
+
+            return
+
+        if knot_type is KnotType.CORNER:
+            self.set_all_handles_visibility(False)
+            self.in_offset = QPointF(.0, .0)
+            self.out_offset = QPointF(.0, .0)
+            self.set_scene_positions()
+
+            self.type = KnotType.CORNER
+
+            return
+
+    def on_double_click(self, point_control: PointControl) -> None:
+        if self.type is KnotType.SMOOTH or self.type is KnotType.BROKEN:
+            self.set_type(KnotType.CORNER)
+            self._on_points_changed()
+            return
+
+        if self.type is KnotType.CORNER:
+            self.set_type(KnotType.SMOOTH)
+            self._on_points_changed()
+            return
 
     def on_hovered(self, point_control: PointControl, state: bool) -> None:
         self.curve.hovered_control = point_control if state else None
@@ -194,7 +259,6 @@ class BezierKnot:
             self.in_scene_offset = offset
         else:
             self.out_scene_offset = offset
-
 
     def sync_control_scene_offset(self, control: KnotControl) -> None:
         if control is KnotControl.IN:
