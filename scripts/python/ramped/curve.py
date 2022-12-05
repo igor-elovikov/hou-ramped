@@ -533,11 +533,27 @@ class BezierCurve:
         path: QPainterPath = QPainterPath()
         path.moveTo(-100.0, 0)
 
+        next_knot_pos = self.knots[1].position.x()
+        next_knot_index = 1
+
         for i in range(SHAPE_STEPS + 1):
             pos = i * SHAPE_STEP
             value = ramp.lookup(pos)
             path_position = self.map_to_scene(QPointF(pos, value))
             path.lineTo(path_position)
+
+            while next_knot_index >= 0 and next_knot_pos > pos and next_knot_pos <= (pos + SHAPE_STEP):
+                value = ramp.lookup(next_knot_pos)
+                path_position = self.map_to_scene(QPointF(next_knot_pos, value))
+                path.lineTo(path_position)                
+                path.lineTo(path_position)
+
+                if next_knot_index < len(self.knots) - 1:
+                    next_knot_index += 1
+                    next_knot_pos = self.knots[next_knot_index].position.x()
+                else:
+                    next_knot_index = -1
+                    break
 
         path.lineTo(self.scene_width + 100.0, 0)
 
