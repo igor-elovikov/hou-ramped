@@ -126,19 +126,27 @@ class RampEditor(QGraphicsView):
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self.curve.ramp is not None:
             if self.curve.hovered_control is None:
-                self.add_marker.setVisible(True)
                 scene_pos = self.mapToScene(event.pos())
-                self.add_marker.setPos(self.curve.ramp_scene_position(scene_pos.x() / self.curve.scene_width) - QPointF(ADD_MARKER_RADIUS, ADD_MARKER_RADIUS))
+                curve_pos: QPointF = self.curve.ramp_scene_position(scene_pos.x() / self.curve.scene_width)
+                diff = curve_pos - scene_pos
+                if diff.manhattanLength() < ADD_MARKER_RADIUS * 2.0:
+                    self.add_marker.setVisible(True)
+                    self.add_marker.setPos(curve_pos - QPointF(ADD_MARKER_RADIUS, ADD_MARKER_RADIUS))
+                else:
+                    self.add_marker.setVisible(False)
             else:
                 self.add_marker.setVisible(False)
         return super().mouseMoveEvent(event)   
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         logger.debug(f"Editor mouse event: {event.source()} {event.isAccepted()} {event.flags()}")
-        if event.buttons() == Qt.LeftButton and self.curve.hovered_control is None:
+        if event.buttons() == Qt.LeftButton and self.curve.hovered_control is None and self.add_marker.isVisible():
             scene_pos = self.mapToScene(event.pos())
             ramp_pos = scene_pos.x() / self.curve.scene_width
             self.curve.add_knot_to_curve(ramp_pos)
+
+        if self.curve.hovered_control is None:
+            self.curve.clear_selection()
             
         return super().mousePressEvent(event)
 
