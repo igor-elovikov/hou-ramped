@@ -441,6 +441,17 @@ class BezierKnot:
         if control is self.out_point_control or control is self.in_point_control:
             logger.debug("Finish moving handle")
 
+    
+    def remove_from_scene(self):
+        self.scene.removeItem(self.knot_point_control)
+        if self.in_point_control is not None:
+            self.scene.removeItem(self.in_point_control)
+        if self.out_point_control is not None:
+            self.scene.removeItem(self.out_point_control)
+        if self.in_handle is not None:
+            self.scene.removeItem(self.in_handle)
+        if self.out_handle is not None:
+            self.scene.removeItem(self.out_handle)
 
     def _on_points_changed(self):
         self.remap_all_from_controls_positions()
@@ -476,6 +487,8 @@ class BezierCurve:
 
         self.hovered_control: PointControl | None = None
         self.selection: list[BezierKnot] = []
+
+        self.parm_set_by_curve = False
 
     def _get_ramp(self) -> hou.Ramp:
         num_keys = len(self.knots) * 3 - 2
@@ -562,6 +575,11 @@ class BezierCurve:
             return self.knots[knot.index - 1]
         return None
 
+    def clear(self):
+        for knot in self.knots:
+            knot.remove_from_scene()
+        self.knots.clear()
+
     def add_knot(self, position: QPointF, in_offset: Optional[QPointF], out_offset: Optional[QPointF], insert_index: int = -1) -> None:
         index = len(self.knots)
         logger.debug(f"Add knot: {position} in: {in_offset} out: {out_offset} index: {index}")
@@ -635,14 +653,13 @@ class BezierCurve:
         for i in range(len(self.knots) - 1):
             left = self.knots[i].position.x()
             right = self.knots[i+1].position.x()
-            print(f"i: {i} left: {left} right: {right}")
             if left <= pos and right > pos:
                 return (i, i+1)
         return (-1, -1)
 
     def add_knot_to_curve(self, pos: float) -> None:
         left, right = self.knot_indicies_from_pos(pos)
-        print(f"lr: {left} {right}")
+
         if left < 0:
             return
 
@@ -654,7 +671,11 @@ class BezierCurve:
         knot_pos = QPointF(pos, self.ramp.lookup(pos))
 
         left_knot.out_offset *= ratio
+        if left_knot.out_offset.x() < EPSILON:
+            left_knot.out_offset.setX(EPSILON)
         right_knot.in_offset *= (1.0 - ratio)
+        if right_knot.in_offset.x() > -EPSILON:
+            right_knot.in_offset.setX(-EPSILON)
 
         left_control_pos = left_knot.position + left_knot.out_offset
         right_control_pos = right_knot.position + right_knot.in_offset
@@ -670,8 +691,50 @@ class BezierCurve:
         self.sync_ramp()
         self.set_ramp_shape()
         
-
-
     def export_to_parm(self):
+        self.parm_set_by_curve = True
         self.parm.set(self.ramp)
-        #self.set_ramp_shape(ramp)             
+        self.parm_set_by_curve = False
+        #self.set_ramp_shape(ramp)
+
+    def load_from_ramp(self, ramp: hou.Ramp) -> None:
+
+        self.clear()
+
+        keys: list[float] = ramp.keys()
+        values: list[float] = ramp.values()
+
+        num_keys = len(keys)
+        num_knots = 2 + (num_keys - 4) // 3
+
+        logger.debug(f"Ramp num knots: {num_knots}")
+
+        for i in range(num_knots):
+
+            if i == 0:
+                knot_pos = QPointF(keys[0], values[0])
+                out_pos = QPointF(keys[1], values[1])
+                self.add_knot(knot_pos, None, out_pos - knot_pos)
+                continue
+
+            if i == (num_knots - 1):
+                index = (num_knots - 1) * 3
+                knot_pos = QPointF(keys[index], values[index])
+                in_pos = QPointF(keys[index-1], values[index-1])
+                self.add_knot(knot_pos, in_pos - knot_pos, None)
+                continue
+
+            index = i * 3
+            knot_pos = QPointF(keys[index], values[index])
+            in_pos = QPointF(keys[index-1], values[index-1])
+            out_pos = QPointF(keys[index+1], values[index+1])
+            self.add_knot(knot_pos, in_pos - knot_pos, out_pos - knot_pos)
+
+        self.sync_ramp()  
+        
+    def on_parm_changed(self):
+        if not self.parm_set_by_curve:
+            logger.debug("Sync changes from parm")
+            self.load_from_ramp(self.parm.evalAsRamp())
+            self.set_ramp_shape()
+             

@@ -23,4 +23,4 @@ handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
 logger = logging.getLogger("RampEditor")
 logger.handlers = [handler]
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG) 

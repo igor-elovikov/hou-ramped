@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Callable
 
 import hou
+import hdefereval
+
 from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt
 from PySide2.QtGui import (QBrush, QColor, QContextMenuEvent, QMouseEvent,
-                           QPainter, QPen, QResizeEvent, QFocusEvent)
+                           QPainter, QPen, QResizeEvent, QFocusEvent, QKeyEvent)
 from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGraphicsEllipseItem
 
 from .curve import BezierCurve
@@ -28,7 +30,7 @@ class RampEditor(QGraphicsView):
 
         self.setRenderHint(QPainter.Antialiasing)
 
-        self.parm: hou.Parm = None
+        self.parm: hou.Parm | None = None
         self.editor_scene = QGraphicsScene(self)
         self.curve = BezierCurve(self.editor_scene)
         
@@ -48,59 +50,93 @@ class RampEditor(QGraphicsView):
         self.bottom_border = 0.0
         self.top_border = 1.0
 
+        self.scene_bottom_border = 0.0
+        self.scene_top_border = 0.0
+
         self.grid_pen = QPen(QColor(72, 72, 73), 0)
 
         self.on_borders_changed: Callable[[float, float], None] = lambda bottom, top: None
+        self.changed_flag = False
 
-    def setup_parm(self, parm: hou.Parm):
+    def attach_parm(self, parm: hou.Parm):
+        self.remove_callbacks()
         self.parm = parm
         self.curve.parm = parm
+        self.load_from_ramp(parm.evalAsRamp())
+        node: hou.Node = self.parm.node()
+        node.addEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)
+        
+
+    def on_parm_changed(self, **kwargs) -> None:
+        is_ramp_parm = False
+        parm_tuple: hou.ParmTuple = kwargs["parm_tuple"]
+        parm: hou.Parm = parm_tuple[0]
+        if parm.isMultiParmInstance():
+            parent: hou.Parm = parm.parentMultiParm()
+            if parent.name() == self.parm.name():
+                is_ramp_parm = True
+        if parm.isMultiParmParent():
+            if parm.name() == self.parm.name():
+                is_ramp_parm = True
+
+        if not is_ramp_parm:
+            return
+
+        if not self.changed_flag:
+            self.changed_flag = True
+            hdefereval.execute_deferred(self.reset_changed_flag)
+        else:
+            return
+
+
+    
+    def reset_changed_flag(self):
+        logger.debug("Reset changed flag")
+        self.curve.on_parm_changed()
+        self.changed_flag = False
+
+    
+    def remove_callbacks(self):
+        if self.parm is not None:
+            logger.debug("Callbacks removed")
+            node: hou.Node = self.parm.node()
+            try:
+                node.removeEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)   
+            except Exception as e:
+                logger.warning(f"Can't remove callback: {e}")
+
+    def on_close(self) -> None:
+        logger.debug("Editor closed")
+        self.remove_callbacks()
+
     
     def load_from_ramp(self, ramp: hou.Ramp) -> None:
 
-        keys: list[float] = ramp.keys()
-        values: list[float] = ramp.values()
+        self.curve.load_from_ramp(ramp)  
+        self.fit_to_viewport()
 
-        num_keys = len(keys)
-        num_knots = 2 + (num_keys - 4) // 3
+    def calculate_scene_borders(self) -> None:
+        self.scene_bottom_border = self.bottom_border * self.curve.scene_height / self.curve.vertical_ratio
+        self.scene_top_border = self.top_border * self.curve.scene_height / self.curve.vertical_ratio
 
-        logger.debug(f"Ramp num knots: {num_knots}")
+    def set_scene_rect(self) -> None:
+        self.setSceneRect(0, self.scene_bottom_border, self.curve.scene_width, self.curve.scene_height)
 
-        for i in range(num_knots):
-
-            if i == 0:
-                knot_pos = QPointF(keys[0], values[0])
-                out_pos = QPointF(keys[1], values[1])
-                self.curve.add_knot(knot_pos, None, out_pos - knot_pos)
-                continue
-
-            if i == (num_knots - 1):
-                index = (num_knots - 1) * 3
-                knot_pos = QPointF(keys[index], values[index])
-                in_pos = QPointF(keys[index-1], values[index-1])
-                self.curve.add_knot(knot_pos, in_pos - knot_pos, None)
-                continue
-
-            index = i * 3
-            knot_pos = QPointF(keys[index], values[index])
-            in_pos = QPointF(keys[index-1], values[index-1])
-            out_pos = QPointF(keys[index+1], values[index+1])
-            self.curve.add_knot(knot_pos, in_pos - knot_pos, out_pos - knot_pos)
-
-        self.curve.sync_ramp()  
-        self.fit_to_viewport()       
+    
+    def update_scene_rect(self) -> None:
+        self.calculate_scene_borders()     
+        self.set_scene_rect()
+        self.curve.reset_scene_positions()
+        self.curve.set_ramp_shape()
      
     def resizeEvent(self, event: QResizeEvent):
         
         size: QSize = event.size()
         logger.debug(f"Resize: [{size.width()}x{size.height()}]")
         self.curve.scene_width = size.width()
-        self.curve.scene_height = size.height()        
+        self.curve.scene_height = size.height()
 
-        self.setSceneRect(0, self.bottom_border * self.curve.scene_height / self.curve.vertical_ratio, self.curve.scene_width, self.curve.scene_height)
-
-        self.curve.reset_scene_positions()
-        self.curve.set_ramp_shape()
+        self.update_scene_rect()
 
         super().resizeEvent(event)
 
@@ -110,12 +146,10 @@ class RampEditor(QGraphicsView):
         
         self.bottom_border = bottom
         self.top_border = top
-        self.curve.set_borders(bottom, top)        
-        
-        self.setSceneRect(0, self.bottom_border * self.curve.scene_height / self.curve.vertical_ratio, self.curve.scene_width, self.curve.scene_height)
+        self.curve.set_borders(bottom, top)
 
-        self.curve.reset_scene_positions()
-        self.curve.set_ramp_shape()
+        self.update_scene_rect()
+        
         self.update()
 
         self.on_borders_changed(bottom, top)
@@ -148,11 +182,13 @@ class RampEditor(QGraphicsView):
         if self.curve.hovered_control is None:
             self.curve.clear_selection()
             
-        return super().mousePressEvent(event)
+        return super().mousePressEvent(event)  
 
-    def focusInEvent(self, event: QFocusEvent) -> None:
-        logger.debug("Focus In")
-        return super().focusInEvent(event)     
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
+            logger.debug("Perform Houdini Undo")
+            hou.undos.performUndo()
+        return super().keyPressEvent(event)
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         menu = ContextMenu(self)
@@ -163,8 +199,7 @@ class RampEditor(QGraphicsView):
         menu.addSeparator()
         menu.addAction("Test")
         menu.popup(event.globalPos())
-        
-
+    
 
     def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
         super().drawBackground(painter, rect)
@@ -179,7 +214,7 @@ class RampEditor(QGraphicsView):
 
         while x < 1.0:
             line_x = x * width
-            lines.append(QLineF(line_x, 0.0, line_x, height))
+            lines.append(QLineF(line_x, self.scene_bottom_border, line_x, self.scene_top_border))
             x += self.grid_horizontal_step
 
         while y < self.top_border:
