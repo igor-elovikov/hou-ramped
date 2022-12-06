@@ -21,10 +21,18 @@ def show_ramp_editor(parm: hou.Parm):
 
     global ramped_window
 
-    ramped_window = EditorWindow(parm)
-    ramped_window.ui.editor.load_from_ramp(parm.evalAsRamp())
-    ramped_window.resize(1600, 900)
-    ramped_window.show()
+    if ramped_window is None:
+
+        ramped_window = EditorWindow(parm)
+        ramped_window.ui.editor.load_from_ramp(parm.evalAsRamp())
+        ramped_window.resize(1600, 900)
+        ramped_window.show()
+
+    else:
+
+        ramped_window.ui.editor.load_from_ramp(parm.evalAsRamp())
+        ramped_window.show()
+        ramped_window.activateWindow()
 
     
 
