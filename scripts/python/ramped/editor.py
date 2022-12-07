@@ -33,6 +33,7 @@ class RampEditor(QGraphicsView):
         self.parm: hou.Parm | None = None
         self.editor_scene = QGraphicsScene(self)
         self.curve = BezierCurve(self.editor_scene)
+        self.curve.editor = self
         self.curve.snap_position = self.snap_position
         
         self.setBackgroundBrush(QBrush(QColor(55, 54, 54)))
@@ -59,7 +60,12 @@ class RampEditor(QGraphicsView):
         self.on_borders_changed: Callable[[float, float], None] = lambda bottom, top: None
         self.changed_flag = False
 
-    def attach_parm(self, parm: hou.Parm):
+        self.snapping_enabled = True
+        self.auto_fit_enabled = True
+        self.clamping_enabled = True
+        self.looping_enabled = False
+
+    def attach_parm(self, parm: hou.Parm) -> None:
         self.remove_callbacks()
         self.parm = parm
         self.curve.parm = parm
@@ -164,6 +170,9 @@ class RampEditor(QGraphicsView):
         #self.fitInView(0, 0, size.width(), size.height())
 
     def set_borders(self, bottom: float, top: float):
+
+        if top < bottom:
+            top = bottom + 1.0
         
         self.bottom_border = bottom
         self.top_border = top
@@ -230,6 +239,10 @@ class RampEditor(QGraphicsView):
         width = self.curve.scene_width
 
         x_step = width * self.grid_horizontal_step
+        y_step = self.grid_vertical_step * self.curve.scene_height / self.curve.vertical_ratio
+
+        if x_step < 10.0 or y_step < 10.0:
+            return
 
         x_lines: list[QLineF] = []
         y_lines: list[QLineF] = []
@@ -238,7 +251,7 @@ class RampEditor(QGraphicsView):
             y_lines.append(QLineF(x, self.scene_bottom_border, x, self.scene_top_border))
             x += x_step
 
-        y_step = self.grid_vertical_step * self.curve.scene_height / self.curve.vertical_ratio           
+                   
 
         while y < self.scene_top_border:
             x_lines.append(QLineF(0.0, y, width, y))

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>719</width>
-    <height>734</height>
+    <width>741</width>
+    <height>701</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,11 +17,20 @@
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <widget class="QLabel" name="label">
+      <property name="font">
+       <font>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
       <property name="text">
-       <string>TextLabel</string>
+       <string>Current Parameter</string>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::AutoText</enum>
       </property>
       <property name="margin">
-       <number>4</number>
+       <number>8</number>
       </property>
      </widget>
     </item>
@@ -78,6 +87,22 @@
      </layout>
     </item>
     <item>
+     <spacer name="verticalSpacer_2">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="sizeType">
+       <enum>QSizePolicy::Fixed</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>10</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item>
      <widget class="QGroupBox" name="settings">
       <property name="title">
        <string>Settings</string>
@@ -103,6 +128,20 @@
           <widget class="QCheckBox" name="grid_snap">
            <property name="text">
             <string>Grid Snapping</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QWidget" name="grid_settings" native="true"/>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="auto_fit">
+           <property name="text">
+            <string>Auto Fit</string>
            </property>
           </widget>
          </item>

@@ -19,14 +19,19 @@ class Ui_RampEditorWindow(object):
     def setupUi(self, RampEditorWindow):
         if not RampEditorWindow.objectName():
             RampEditorWindow.setObjectName(u"RampEditorWindow")
-        RampEditorWindow.resize(719, 734)
+        RampEditorWindow.resize(741, 701)
         self.central_widget = QWidget(RampEditorWindow)
         self.central_widget.setObjectName(u"central_widget")
         self.verticalLayout = QVBoxLayout(self.central_widget)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.label = QLabel(self.central_widget)
         self.label.setObjectName(u"label")
-        self.label.setMargin(4)
+        font = QFont()
+        font.setBold(True)
+        font.setWeight(75)
+        self.label.setFont(font)
+        self.label.setTextFormat(Qt.AutoText)
+        self.label.setMargin(8)
 
         self.verticalLayout.addWidget(self.label)
 
@@ -68,6 +73,10 @@ class Ui_RampEditorWindow(object):
 
         self.verticalLayout.addLayout(self.editor_layout)
 
+        self.verticalSpacer_2 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+
+        self.verticalLayout.addItem(self.verticalSpacer_2)
+
         self.settings = QGroupBox(self.central_widget)
         self.settings.setObjectName(u"settings")
         self.verticalLayout_2 = QVBoxLayout(self.settings)
@@ -92,6 +101,21 @@ class Ui_RampEditorWindow(object):
 
         self.verticalLayout_2.addLayout(self.horizontalLayout)
 
+        self.horizontalLayout_2 = QHBoxLayout()
+        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
+        self.grid_settings = QWidget(self.settings)
+        self.grid_settings.setObjectName(u"grid_settings")
+
+        self.horizontalLayout_2.addWidget(self.grid_settings)
+
+        self.auto_fit = QCheckBox(self.settings)
+        self.auto_fit.setObjectName(u"auto_fit")
+
+        self.horizontalLayout_2.addWidget(self.auto_fit)
+
+
+        self.verticalLayout_2.addLayout(self.horizontalLayout_2)
+
 
         self.verticalLayout.addWidget(self.settings)
 
@@ -104,10 +128,11 @@ class Ui_RampEditorWindow(object):
 
     def retranslateUi(self, RampEditorWindow):
         RampEditorWindow.setWindowTitle(QCoreApplication.translate("RampEditorWindow", u"MainWindow", None))
-        self.label.setText(QCoreApplication.translate("RampEditorWindow", u"TextLabel", None))
+        self.label.setText(QCoreApplication.translate("RampEditorWindow", u"Current Parameter", None))
         self.settings.setTitle(QCoreApplication.translate("RampEditorWindow", u"Settings", None))
         self.clamp_to_01.setText(QCoreApplication.translate("RampEditorWindow", u"Clamp to [0:1]", None))
         self.looping_ramp.setText(QCoreApplication.translate("RampEditorWindow", u"Looping Ramp", None))
         self.grid_snap.setText(QCoreApplication.translate("RampEditorWindow", u"Grid Snapping", None))
+        self.auto_fit.setText(QCoreApplication.translate("RampEditorWindow", u"Auto Fit", None))
     # retranslateUi
 
