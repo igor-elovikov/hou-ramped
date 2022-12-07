@@ -1,4 +1,4 @@
-from PySide2.QtGui import QColor, QLinearGradient, QPen, QBrush
+from PySide2.QtGui import QColor, QLinearGradient, QPen, QBrush, QFont
 
 HOVERED_SCALE = 1.2
 EPSILON = 0.0001
@@ -16,3 +16,5 @@ SHAPE_GRADIENT.setSpread(QLinearGradient.Spread.ReflectSpread)
 SHAPE_PEN = QPen(QBrush(QColor(239, 239, 239)), 3)
 
 SHAPE_STEP = 1.0 / SHAPE_STEPS
+
+GRID_FONT = QFont("Source Code Pro", 8.0)

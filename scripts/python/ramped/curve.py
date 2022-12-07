@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import Optional, Callable
 import functools
 
 from enum import Enum, auto
@@ -494,6 +494,8 @@ class BezierCurve:
         self.hovered_control: PointControl | None = None
         self.selection: list[BezierKnot] = []
 
+        self.snap_position: Callable[[QPointF], None] = lambda _: None
+
         self.parm_set_by_curve = False
 
     def _get_ramp(self) -> hou.Ramp:
@@ -533,25 +535,6 @@ class BezierCurve:
                     self.max_y = pos.y()                
 
         return hou.Ramp(basis, keys, values)
-
-    def snap_position(self, position: QPointF) -> None:
-
-        x = position.x()
-        y = position.y()
-
-        x_step = self.scene_width * 0.1
-        y_step = self.scene_height * 0.1
-
-        grid_x = round(x / x_step)
-        grid_y = round(y / y_step)
-
-        grid_pos = QPointF(grid_x * x_step, grid_y * y_step)
-
-        diff = position - grid_pos
-
-        if diff.manhattanLength() < SNAPPING_DISTANCE:
-            position.setX(grid_pos.x())
-            position.setY(grid_pos.y())
 
     def select_knot(self, knot: BezierKnot) -> None:
         for other_knot in self.knots:

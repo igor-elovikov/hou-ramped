@@ -12,7 +12,7 @@ from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGr
 
 from .curve import BezierCurve
 from .logger import logger
-from .settings import ADD_MARKER_RADIUS, ADD_MARKER_COLOR
+from .settings import ADD_MARKER_RADIUS, ADD_MARKER_COLOR, GRID_FONT, SNAPPING_DISTANCE
 
 
 class ContextMenu(QMenu):
@@ -33,6 +33,7 @@ class RampEditor(QGraphicsView):
         self.parm: hou.Parm | None = None
         self.editor_scene = QGraphicsScene(self)
         self.curve = BezierCurve(self.editor_scene)
+        self.curve.snap_position = self.snap_position
         
         self.setBackgroundBrush(QBrush(QColor(55, 54, 54)))
         self.setScene(self.editor_scene)
@@ -70,7 +71,7 @@ class RampEditor(QGraphicsView):
     def on_parm_changed(self, **kwargs) -> None:
         if self.curve.parm_set_by_curve:
             return
-            
+
         is_ramp_parm = False
         parm_tuple: hou.ParmTuple = kwargs["parm_tuple"]
         parm: hou.Parm = parm_tuple[0]
@@ -91,7 +92,24 @@ class RampEditor(QGraphicsView):
         else:
             return
 
+    def snap_position(self, position: QPointF) -> None:
 
+        x = position.x()
+        y = position.y()
+
+        x_step = self.curve.scene_width * self.grid_horizontal_step
+        y_step = self.curve.scene_height * self.grid_vertical_step / self.curve.vertical_ratio
+
+        grid_x = round(x / x_step)
+        grid_y = round(y / y_step)
+
+        grid_pos = QPointF(grid_x * x_step, grid_y * y_step)
+
+        diff = position - grid_pos
+
+        if diff.manhattanLength() < SNAPPING_DISTANCE:
+            position.setX(grid_pos.x())
+            position.setY(grid_pos.y())
     
     def reset_changed_flag(self):
         logger.debug("Reset changed flag")
@@ -176,7 +194,6 @@ class RampEditor(QGraphicsView):
         return super().mouseMoveEvent(event)   
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        logger.debug(f"Editor mouse event: {event.source()} {event.isAccepted()} {event.flags()}")
         if event.buttons() == Qt.LeftButton and self.curve.hovered_control is None and self.add_marker.isVisible():
             scene_pos = self.mapToScene(event.pos())
             ramp_pos = scene_pos.x() / self.curve.scene_width
@@ -214,24 +231,39 @@ class RampEditor(QGraphicsView):
 
         x_step = width * self.grid_horizontal_step
 
-        lines = []
+        x_lines: list[QLineF] = []
+        y_lines: list[QLineF] = []
 
         while x <= width:
-            line_x = x * width
-            lines.append(QLineF(x, self.scene_bottom_border, x, self.scene_top_border))
+            y_lines.append(QLineF(x, self.scene_bottom_border, x, self.scene_top_border))
             x += x_step
 
         y_step = self.grid_vertical_step * self.curve.scene_height / self.curve.vertical_ratio           
 
         while y < self.scene_top_border:
-            lines.append(QLineF(0.0, y, width, y))
+            x_lines.append(QLineF(0.0, y, width, y))
             y += y_step 
 
         y = -y_step
 
         while y > self.scene_bottom_border:           
-            lines.append(QLineF(0.0, y, width, y))
+            x_lines.append(QLineF(0.0, y, width, y))
             y -= y_step 
 
         painter.setPen(self.grid_pen)
-        painter.drawLines(lines)      
+        painter.drawLines(x_lines)
+        painter.drawLines(y_lines)
+
+        painter.setFont(GRID_FONT)
+        painter.save()
+        painter.scale(1, -1)
+
+        for y_line in y_lines[1:]:
+            value = y_line.x1() / width
+            painter.drawText(QPointF(y_line.x1() - 2.0, -6.0), f"{value: .2f}")
+
+        for x_line in x_lines:
+            value = x_line.y1() / self.curve.scene_height * self.curve.vertical_ratio
+            painter.drawText(QPointF(-4.0, -x_line.y1() - 6.0), f"{value: .2f}")
+
+        painter.restore()
