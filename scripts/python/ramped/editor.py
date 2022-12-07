@@ -68,6 +68,9 @@ class RampEditor(QGraphicsView):
         
 
     def on_parm_changed(self, **kwargs) -> None:
+        if self.curve.parm_set_by_curve:
+            return
+            
         is_ramp_parm = False
         parm_tuple: hou.ParmTuple = kwargs["parm_tuple"]
         parm: hou.Parm = parm_tuple[0]
@@ -99,8 +102,8 @@ class RampEditor(QGraphicsView):
     def remove_callbacks(self):
         if self.parm is not None:
             logger.debug("Callbacks removed")
-            node: hou.Node = self.parm.node()
             try:
+                node: hou.Node = self.parm.node()                
                 node.removeEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)   
             except Exception as e:
                 logger.warning(f"Can't remove callback: {e}")
@@ -207,27 +210,28 @@ class RampEditor(QGraphicsView):
         x = 0.0
         y = 0.0
 
-        width = self.width()
-        height = self.height()
+        width = self.curve.scene_width
+
+        x_step = width * self.grid_horizontal_step
 
         lines = []
 
-        while x < 1.0:
+        while x <= width:
             line_x = x * width
-            lines.append(QLineF(line_x, self.scene_bottom_border, line_x, self.scene_top_border))
-            x += self.grid_horizontal_step
+            lines.append(QLineF(x, self.scene_bottom_border, x, self.scene_top_border))
+            x += x_step
 
-        while y < self.top_border:
-            line_y = y * height
-            lines.append(QLineF(0.0, line_y, width, line_y))
-            y += self.grid_vertical_step 
+        y_step = self.grid_vertical_step * self.curve.scene_height / self.curve.vertical_ratio           
 
-        y = -self.grid_vertical_step
+        while y < self.scene_top_border:
+            lines.append(QLineF(0.0, y, width, y))
+            y += y_step 
 
-        while y > self.bottom_border:           
-            line_y = y * height
-            lines.append(QLineF(0.0, line_y, width, line_y))
-            y -= self.grid_vertical_step 
+        y = -y_step
+
+        while y > self.scene_bottom_border:           
+            lines.append(QLineF(0.0, y, width, y))
+            y -= y_step 
 
         painter.setPen(self.grid_pen)
         painter.drawLines(lines)      

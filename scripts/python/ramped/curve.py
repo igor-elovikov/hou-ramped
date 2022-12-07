@@ -12,9 +12,12 @@ from PySide2.QtWidgets import QGraphicsLineItem, QGraphicsScene, QGraphicsPathIt
 
 from .control import PointControl, ControlStyle
 from .logger import logger
-from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN
+from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN, SNAPPING_DISTANCE
 
 import hou
+
+ONE_THIRD = 0.3333333333333
+TWO_THIRDS = 0.6666666666666
 
 class KnotType(Enum):
     SMOOTH = auto()
@@ -135,12 +138,12 @@ class BezierKnot:
             #FIXME: can be improved
             if prev_knot is not None:
                 prev_out_pos = prev_knot.position + prev_knot.out_offset
-                ratio = (.5 * (self.position.x() - prev_out_pos.x()) ) 
+                ratio = (0.5 * (self.position.x() - prev_out_pos.x()) ) 
                 self.in_offset = -gradient * ratio 
 
             if next_knot is not None:
                 next_in_pos = next_knot.position + next_knot.in_offset
-                ratio = ((.5 * (next_in_pos.x() - self.position.x()) ))
+                ratio = ((0.5 * (next_in_pos.x() - self.position.x()) ))
                 self.out_offset = gradient * ratio
 
             self.set_all_handles_visibility(True)
@@ -152,8 +155,8 @@ class BezierKnot:
 
         if knot_type is KnotType.CORNER:
             self.set_all_handles_visibility(False)
-            self.in_offset = QPointF(.0, .0)
-            self.out_offset = QPointF(.0, .0)
+            self.in_offset = QPointF(0.0, 0.0)
+            self.out_offset = QPointF(0.0, 0.0)
             self.set_scene_positions()
 
             self.type = KnotType.CORNER
@@ -302,7 +305,7 @@ class BezierKnot:
         factor: float = 1.0
         desired_position: QPointF = knot_position + self.out_scene_offset
 
-        if desired_position.x() > right_limit:
+        if desired_position.x() >= right_limit:
             if self.clamp_by_line:
                 factor = (right_limit - knot_position.x()) / self.out_scene_offset.x()
                 desired_position = knot_position + self.out_scene_offset * factor
@@ -336,7 +339,8 @@ class BezierKnot:
                 desired_position.setX(left_limit + EPSILON)
 
         right_limit = self.scene_position.x()
-        if desired_position.x() > right_limit:
+        if desired_position.x() >= right_limit:
+            logger.debug("Exceed right limit")
             desired_position.setX(right_limit - EPSILON)                
 
         self.set_in_control_scene_position(desired_position)   
@@ -350,6 +354,7 @@ class BezierKnot:
             return self.move_out_control(knot_position)
 
     def move_in_scene(self, position: QPointF) -> None:
+
         self.scene_position = position
 
         next_knot = self.curve.next_knot(self)
@@ -366,11 +371,11 @@ class BezierKnot:
 
         out_of_limits = False
 
-        if position.x() > right_limit:
+        if position.x() >= right_limit:
             out_of_limits = True
             position.setX(right_limit - EPSILON)
 
-        if position.x() < left_limit:
+        if position.x() <= left_limit:
             out_of_limits = True
             position.setX(left_limit + EPSILON)
 
@@ -383,6 +388,7 @@ class BezierKnot:
         self.move_in_control(position)        
 
     def on_move_knot(self, control: PointControl, offset: QPointF, position: QPointF) -> None:
+        self.curve.snap_position(position)
         prev_position = self.scene_position
         self.move_in_scene(position)
         offset = position - prev_position
@@ -397,6 +403,8 @@ class BezierKnot:
         self._on_points_changed()
     
     def on_move_control(self, control: KnotControl, point_control: PointControl, offset: QPointF, position: QPointF) -> None:
+
+        self.curve.snap_position(position)
 
         self.set_control_scene_position(control, position, sync_point_control=False)
         self.sync_control_scene_offset(control)
@@ -435,8 +443,6 @@ class BezierKnot:
             logger.debug("Finish moving knot")
         elif self.is_clicked_while_selected:
             self.curve.select_knot(self)
-
-
 
         if control is self.out_point_control or control is self.in_point_control:
             logger.debug("Finish moving handle")
@@ -527,6 +533,25 @@ class BezierCurve:
                     self.max_y = pos.y()                
 
         return hou.Ramp(basis, keys, values)
+
+    def snap_position(self, position: QPointF) -> None:
+
+        x = position.x()
+        y = position.y()
+
+        x_step = self.scene_width * 0.1
+        y_step = self.scene_height * 0.1
+
+        grid_x = round(x / x_step)
+        grid_y = round(y / y_step)
+
+        grid_pos = QPointF(grid_x * x_step, grid_y * y_step)
+
+        diff = position - grid_pos
+
+        if diff.manhattanLength() < SNAPPING_DISTANCE:
+            position.setX(grid_pos.x())
+            position.setY(grid_pos.y())
 
     def select_knot(self, knot: BezierKnot) -> None:
         for other_knot in self.knots:
@@ -666,9 +691,43 @@ class BezierCurve:
         left_knot = self.knots[left]
         right_knot = self.knots[right]
 
-        ratio = (pos - left_knot.position.x())/(right_knot.position.x() - left_knot.position.x())
+        left_out_pos = left_knot.position + left_knot.out_offset
+        right_in_pos = right_knot.position + right_knot.in_offset
 
+
+        ratio = (pos - left_knot.position.x())/(right_knot.position.x() - left_knot.position.x())
         knot_pos = QPointF(pos, self.ramp.lookup(pos))
+
+        out_length = QPointF(0.0, 0.0)
+        current_point = QPointF(knot_pos)
+
+        SAMPLING_RATE = 50
+
+        current_pos = QPointF(left_knot.position)
+
+        for x in range(1, SAMPLING_RATE + 1):
+            ratio = x * 1.0 / SAMPLING_RATE
+            lk_out_offset = left_knot.out_offset * ratio
+            rk_in_offset =  right_knot.in_offset * (1.0 - ratio)
+
+            left_control_pos = left_knot.position + lk_out_offset
+            right_control_pos = right_knot.position + rk_in_offset
+
+            middle = left_out_pos + (right_in_pos - left_out_pos) * ratio
+            middle_out = left_control_pos + (middle - left_control_pos) * ratio
+            middle_in = middle + (right_control_pos - middle) * ratio
+
+            gradient = middle_in - middle_out
+            sampled_pos = middle_out + gradient * ratio
+
+            logger.debug(f"ratio: {ratio} current: {current_pos} sampled: {sampled_pos} knot: {knot_pos}")
+
+            if knot_pos.x() <= sampled_pos.x() and knot_pos.x() >= current_pos.x():
+                logger.debug(f"Found U: {ratio}")
+                break
+
+            current_pos = sampled_pos
+
 
         left_knot.out_offset *= ratio
         if left_knot.out_offset.x() < EPSILON:
@@ -677,13 +736,11 @@ class BezierCurve:
         if right_knot.in_offset.x() > -EPSILON:
             right_knot.in_offset.setX(-EPSILON)
 
-        left_control_pos = left_knot.position + left_knot.out_offset
-        right_control_pos = right_knot.position + right_knot.in_offset
 
-        gradient = right_control_pos - left_control_pos
+        #ratio = (knot_pos.x() - left_control_pos.x()) / gradient_len
 
-        knot_in = gradient * (-ratio) * 0.5
-        knot_out = gradient * (1.0 - ratio) * 0.5
+        knot_in = gradient * (-ratio) 
+        knot_out = gradient * (1.0 - ratio) 
 
         self.add_knot(knot_pos, knot_in, knot_out, right)
 

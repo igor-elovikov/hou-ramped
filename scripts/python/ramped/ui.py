@@ -19,7 +19,7 @@ class Ui_RampEditorWindow(object):
     def setupUi(self, RampEditorWindow):
         if not RampEditorWindow.objectName():
             RampEditorWindow.setObjectName(u"RampEditorWindow")
-        RampEditorWindow.resize(676, 679)
+        RampEditorWindow.resize(719, 734)
         self.central_widget = QWidget(RampEditorWindow)
         self.central_widget.setObjectName(u"central_widget")
         self.verticalLayout = QVBoxLayout(self.central_widget)
@@ -68,25 +68,32 @@ class Ui_RampEditorWindow(object):
 
         self.verticalLayout.addLayout(self.editor_layout)
 
-        self.settings = QHBoxLayout()
+        self.settings = QGroupBox(self.central_widget)
         self.settings.setObjectName(u"settings")
-        self.checkBox_3 = QCheckBox(self.central_widget)
-        self.checkBox_3.setObjectName(u"checkBox_3")
+        self.verticalLayout_2 = QVBoxLayout(self.settings)
+        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.clamp_to_01 = QCheckBox(self.settings)
+        self.clamp_to_01.setObjectName(u"clamp_to_01")
 
-        self.settings.addWidget(self.checkBox_3)
+        self.horizontalLayout.addWidget(self.clamp_to_01)
 
-        self.checkBox_2 = QCheckBox(self.central_widget)
-        self.checkBox_2.setObjectName(u"checkBox_2")
+        self.looping_ramp = QCheckBox(self.settings)
+        self.looping_ramp.setObjectName(u"looping_ramp")
 
-        self.settings.addWidget(self.checkBox_2)
+        self.horizontalLayout.addWidget(self.looping_ramp)
 
-        self.checkBox = QCheckBox(self.central_widget)
-        self.checkBox.setObjectName(u"checkBox")
+        self.grid_snap = QCheckBox(self.settings)
+        self.grid_snap.setObjectName(u"grid_snap")
 
-        self.settings.addWidget(self.checkBox)
+        self.horizontalLayout.addWidget(self.grid_snap)
 
 
-        self.verticalLayout.addLayout(self.settings)
+        self.verticalLayout_2.addLayout(self.horizontalLayout)
+
+
+        self.verticalLayout.addWidget(self.settings)
 
         RampEditorWindow.setCentralWidget(self.central_widget)
 
@@ -98,8 +105,9 @@ class Ui_RampEditorWindow(object):
     def retranslateUi(self, RampEditorWindow):
         RampEditorWindow.setWindowTitle(QCoreApplication.translate("RampEditorWindow", u"MainWindow", None))
         self.label.setText(QCoreApplication.translate("RampEditorWindow", u"TextLabel", None))
-        self.checkBox_3.setText(QCoreApplication.translate("RampEditorWindow", u"CheckBox", None))
-        self.checkBox_2.setText(QCoreApplication.translate("RampEditorWindow", u"CheckBox", None))
-        self.checkBox.setText(QCoreApplication.translate("RampEditorWindow", u"CheckBox", None))
+        self.settings.setTitle(QCoreApplication.translate("RampEditorWindow", u"Settings", None))
+        self.clamp_to_01.setText(QCoreApplication.translate("RampEditorWindow", u"Clamp to [0:1]", None))
+        self.looping_ramp.setText(QCoreApplication.translate("RampEditorWindow", u"Looping Ramp", None))
+        self.grid_snap.setText(QCoreApplication.translate("RampEditorWindow", u"Grid Snapping", None))
     # retranslateUi
 

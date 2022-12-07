@@ -99,7 +99,7 @@ class PointControl(QGraphicsItem):
             painter.drawEllipse(QPointF(0, 0), self.current_radius, self.current_radius)
         else:
             rect_size = self.current_radius * 2
-            painter.drawRect(-self.current_radius, -self.current_radius, rect_size, rect_size)
+            painter.drawRect(QRectF(-self.current_radius, -self.current_radius, rect_size, rect_size))
 
     def boundingRect(self) -> QRectF:
         return self.bounding_rect
