@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import math
 from typing import Optional, Callable, TYPE_CHECKING
-import functools
 
-from enum import Enum, auto
+from PySide2.QtCore import QPointF
+from PySide2.QtGui import QBrush, QPainterPath
+from PySide2.QtWidgets import QGraphicsScene, QGraphicsPathItem
 
-from PySide2.QtCore import QLineF, QPointF, Qt
-from PySide2.QtGui import QColor, QPen, QBrush, QPainterPath, QGuiApplication
-from PySide2.QtWidgets import QGraphicsLineItem, QGraphicsScene, QGraphicsPathItem, QGraphicsView
-
-from .control import PointControl, ControlStyle
+from .control import PointControl
 from .logger import logger
-from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN, SNAPPING_DISTANCE
-from .knot import BezierKnot
+from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN
+from .knot import BezierKnot, KnotControl
 
 if TYPE_CHECKING:
     from .editor import RampEditor
@@ -47,8 +44,8 @@ class BezierCurve:
         
         self.scene.addItem(self.ramp_shape)
 
-        self.scene_width = 0
-        self.scene_height = 0
+        self.scene_width = 1000
+        self.scene_height = 1000
 
         self.min_y = 0.0
         self.max_y = 1.0
@@ -155,14 +152,22 @@ class BezierCurve:
         logger.debug(f"Add knot: {position} in: {in_offset} out: {out_offset} index: {index}")
         knot = BezierKnot(self, index, position, in_offset, out_offset)
         if insert_index < 0:
+            if index == 0:
+                knot.is_first = True
+            else:
+                knot.is_last = True
             self.knots.append(knot)
         else:
             self.knots.insert(insert_index, knot)
-            self.reindex_knots()
+        self.reindex_knots()
 
     def reindex_knots(self) -> None:
         for i, knot in enumerate(self.knots):
             knot.index = i
+            knot.is_first = False
+            knot.is_last = False
+        self.knots[0].is_first = True
+        self.knots[-1].is_last = True
         
     def reset_scene_positions(self) -> None:
         for knot in self.knots:
@@ -239,12 +244,8 @@ class BezierCurve:
         left_out_pos = left_knot.position + left_knot.out_offset
         right_in_pos = right_knot.position + right_knot.in_offset
 
-
         ratio = (pos - left_knot.position.x())/(right_knot.position.x() - left_knot.position.x())
         knot_pos = QPointF(pos, self.ramp.lookup(pos))
-
-        out_length = QPointF(0.0, 0.0)
-        current_point = QPointF(knot_pos)
 
         SAMPLING_RATE = 50
 
@@ -282,17 +283,45 @@ class BezierCurve:
             right_knot.in_offset.setX(-EPSILON)
 
 
-        #ratio = (knot_pos.x() - left_control_pos.x()) / gradient_len
-
         knot_in = gradient * (-ratio) 
         knot_out = gradient * (1.0 - ratio) 
 
         self.add_knot(knot_pos, knot_in, knot_out, right)
 
+        self.on_knots_changed()
+
+    def on_knots_changed(self) -> None:
         self.reset_scene_positions()
         self.sync_ramp()
         self.set_ramp_shape()
-        
+        self.export_to_parm()
+
+    def set_clamped(self, is_clamped: bool) -> None:
+        self.editor.clamping_enabled = is_clamped
+        logger.debug(f"Set curve clamped: {is_clamped}")
+        if is_clamped:
+            self.knots[0].limit_horizontally = True
+            self.knots[0].limit_x = 0.0
+            self.knots[0].position.setX(0.0)
+            self.knots[-1].limit_horizontally = True
+            self.knots[-1].limit_x = 1.0
+            self.knots[-1].position.setX(1.0)
+            self.on_knots_changed()
+        else:
+            self.knots[0].limit_horizontally = False
+            self.knots[-1].limit_horizontally = False
+
+    def set_looped(self, is_looped: bool) -> None:
+        self.editor.looping_enabled = is_looped
+        if is_looped:
+            self.set_clamped(True)
+            self.knots[0].on_move_control(KnotControl.OUT, 
+                            self.knots[0].out_point_control, 
+                            QPointF(0, 0), 
+                            self.knots[0].get_control_scene_position(KnotControl.OUT))
+            self.knots[-1].position.setY(self.knots[0].position.y())                            
+            self.on_knots_changed()
+                 
     def export_to_parm(self):
         self.parm_set_by_curve = True
         self.parm.set(self.ramp)

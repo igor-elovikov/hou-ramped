@@ -128,7 +128,8 @@ class RampEditor(QGraphicsView):
             logger.debug("Callbacks removed")
             try:
                 node: hou.Node = self.parm.node()                
-                node.removeEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)   
+                node.removeEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)
+                self.parm = None   
             except Exception as e:
                 logger.warning(f"Can't remove callback: {e}")
 
@@ -141,6 +142,7 @@ class RampEditor(QGraphicsView):
 
         self.curve.load_from_ramp(ramp)  
         self.fit_to_viewport()
+        self.curve.set_clamped(self.clamping_enabled)
 
     def calculate_scene_borders(self) -> None:
         self.scene_bottom_border = self.bottom_border * self.curve.scene_height / self.curve.vertical_ratio
@@ -185,7 +187,7 @@ class RampEditor(QGraphicsView):
         self.on_borders_changed(bottom, top)
 
     def fit_to_viewport(self):
-        self.set_borders(self.curve.min_y, self.curve.max_y)
+        self.set_borders(min(self.curve.min_y, self.curve.bottom_border), max(self.curve.max_y, self.curve.top_border))
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self.curve.ramp is not None:

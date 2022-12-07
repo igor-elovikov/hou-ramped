@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 import math
-from typing import Optional, Callable, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 import functools
 
 from enum import Enum, auto
 
 from PySide2.QtCore import QLineF, QPointF, Qt
-from PySide2.QtGui import QColor, QPen, QBrush, QPainterPath, QGuiApplication
-from PySide2.QtWidgets import QGraphicsLineItem, QGraphicsScene, QGraphicsPathItem, QGraphicsView
+from PySide2.QtGui import QColor, QPen, QGuiApplication
+from PySide2.QtWidgets import QGraphicsLineItem, QGraphicsScene
 
 from .control import PointControl, ControlStyle
 from .logger import logger
-from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN, SNAPPING_DISTANCE
+from .settings import EPSILON
 
 if TYPE_CHECKING:
     from .curve import BezierCurve
 
-import hou
 
 class KnotType(Enum):
     SMOOTH = auto()
@@ -48,8 +47,10 @@ class BezierKnot:
         self.curve: BezierCurve = curve
         self.scene: QGraphicsScene = curve.scene
 
-        self.limit_horizontally: bool = False
-        self.limit_x: float = 0.0   
+        self.limit_horizontally = False
+        self.limit_x = 0.0  
+        self.is_first = False
+        self.is_last = False 
 
         self.handles_pen: QPen = QPen(QColor(218, 218, 217), 2)
         self.handles_pen.setStyle(Qt.DashLine)  
@@ -296,6 +297,10 @@ class BezierKnot:
         self.sync_scene_offsets()
        
     def move_out_control(self, knot_position: QPointF) -> QPointF:
+        if self.out_point_control is None:
+            self.set_out_control_scene_position(self.scene_position)
+            return self.scene_position
+
         next_knot = self.curve.next_knot(self)
 
         right_limit = self.curve.scene_width
@@ -322,6 +327,10 @@ class BezierKnot:
         return desired_position
 
     def move_in_control(self, knot_position: QPointF) -> QPointF:
+        if self.in_point_control is None:
+            self.set_in_control_scene_position(self.scene_position )
+            return self.scene_position
+
         prev_knot = self.curve.prev_knot(self)
         left_limit = 0.0
         if prev_knot is not None and prev_knot.out_point_control is not None:
@@ -373,10 +382,18 @@ class BezierKnot:
         if position.x() >= right_limit:
             out_of_limits = True
             position.setX(right_limit - EPSILON)
+            if self.is_last:
+                position.setX(right_limit)
 
         if position.x() <= left_limit:
             out_of_limits = True
             position.setX(left_limit + EPSILON)
+            if self.is_first:
+                position.setX(left_limit)
+
+        if self.limit_horizontally:
+            out_of_limits = True
+            position.setX(self.limit_x * self.curve.scene_width)                
 
         if out_of_limits:
             self.knot_point_control.set_pos_notification(False)
@@ -384,13 +401,15 @@ class BezierKnot:
             self.knot_point_control.restore_pos_notifications()
 
         self.move_out_control(position)
-        self.move_in_control(position)        
+        self.move_in_control(position)
+
 
     def on_move_knot(self, control: PointControl, offset: QPointF, position: QPointF) -> None:
         self.curve.snap_position(position)
         prev_position = self.scene_position
         self.move_in_scene(position)
         offset = position - prev_position
+
         if len(self.curve.selection) > 1:
             for knot in self.curve.selection:
                 if knot is not self:
@@ -398,6 +417,21 @@ class BezierKnot:
                     knot.move_in_scene(knot.scene_position + offset)
                     knot.knot_point_control.setPos(knot_pos)
                     knot.remap_all_from_controls_positions()
+
+        if self.curve.editor.looping_enabled and (self.is_first or self.is_last):
+            if self.is_first:
+                knot = self.curve.knots[-1]
+                knot_pos = QPointF(knot.scene_position.x(), position.y())
+                knot.move_in_scene(knot_pos)
+                knot.knot_point_control.setPos(knot_pos)
+                knot.remap_all_from_controls_positions()   
+            if self.is_last:
+                knot = self.curve.knots[0]
+                knot_pos = QPointF(knot.scene_position.x(), position.y())
+                knot.move_in_scene(knot_pos)
+                knot.knot_point_control.setPos(knot_pos)
+                knot.remap_all_from_controls_positions()                             
+
 
         self._on_points_changed()
     
@@ -415,10 +449,22 @@ class BezierKnot:
 
         opposite_control = self.get_opposite_control(control)
         offset = self.get_control_scene_offset(control)
-        opposite_offset = self.get_control_scene_offset(opposite_control)
+        
 
         opposite_point_control = self.get_control(opposite_control)
+        opposite_knot = self
 
+        if self.curve.editor.looping_enabled:
+            if self.is_last and control is KnotControl.IN:
+                opposite_point_control = self.curve.knots[0].get_control(KnotControl.OUT)
+                opposite_knot = self.curve.knots[0]
+
+            if self.is_first and control is KnotControl.OUT:
+                opposite_point_control = self.curve.knots[-1].get_control(KnotControl.IN)
+                opposite_knot = self.curve.knots[-1]  
+
+        opposite_offset = opposite_knot.get_control_scene_offset(opposite_control)                              
+                
         if opposite_point_control is None or self.type is not KnotType.SMOOTH:
             self._on_points_changed()
             return
@@ -427,10 +473,12 @@ class BezierKnot:
         dir = offset * -1.0
         qpoint_normalize(dir)
 
-        self.set_control_scene_offset(opposite_control, dir * length)
-        self.move_control(opposite_control, self.scene_position)
+        opposite_knot.set_control_scene_offset(opposite_control, dir * length)
+        opposite_knot.move_control(opposite_control, opposite_knot.scene_position)
 
         self._on_points_changed()
+        if self is not opposite_knot:
+            opposite_knot._on_points_changed()
 
     def finish_move_in_scene(self, control: PointControl, has_moved: bool) -> None:
 
@@ -438,6 +486,8 @@ class BezierKnot:
             for knot in self.curve.selection:
                 knot.sync_scene_offsets()
                 knot.remap_all_from_scene_positions()
+            if self.curve.editor.auto_fit_enabled:
+                self.curve.editor.fit_to_viewport()                
             self.curve.export_to_parm()
             logger.debug("Finish moving knot")
         elif self.is_clicked_while_selected:

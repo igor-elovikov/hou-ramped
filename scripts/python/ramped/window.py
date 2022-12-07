@@ -59,6 +59,12 @@ class EditorWindow(QMainWindow):
 
         self.top_border_edit = False
 
+        self.ui.clamp_to_01.setChecked(self.ui.editor.clamping_enabled)
+        self.ui.clamp_to_01.clicked.connect(self.clamped_checked)
+
+        self.ui.looping_ramp.setChecked(self.ui.editor.looping_enabled)
+        self.ui.looping_ramp.clicked.connect(self.looped_checked)
+
         self.setWindowTitle("Ramp Editor")
 
     def show_border_input(self, top: bool, pos: QPoint) -> None:
@@ -96,5 +102,13 @@ class EditorWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.ui.editor.on_close()
-        return super().close()        
+        return super().close()   
+
+    def clamped_checked(self, checked: bool) -> None:
+        self.ui.editor.curve.set_clamped(checked)
+
+    def looped_checked(self, checked: bool) -> None:
+        if not self.ui.editor.clamping_enabled and checked:
+            self.ui.clamp_to_01.setChecked(True)
+        self.ui.editor.curve.set_looped(checked)
 
