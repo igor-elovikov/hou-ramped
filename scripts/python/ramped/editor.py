@@ -36,7 +36,7 @@ class RampEditor(QGraphicsView):
         self.curve.editor = self
         self.curve.snap_position = self.snap_position
         
-        self.setBackgroundBrush(QBrush(QColor(55, 54, 54)))
+        self.setBackgroundBrush(QBrush(QColor(38, 38, 38)))
         self.setScene(self.editor_scene)
         self.setSceneRect(0, 0, parent.width(), parent.height())
         self.scale(1, -1)
@@ -99,6 +99,9 @@ class RampEditor(QGraphicsView):
             return
 
     def snap_position(self, position: QPointF) -> None:
+
+        if not self.snapping_enabled:
+            return
 
         x = position.x()
         y = position.y()

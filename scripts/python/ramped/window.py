@@ -9,6 +9,7 @@ from .ui import Ui_RampEditorWindow
 import functools
 
 import hou
+from houpythonportion.qt import InputField
 
 class BorderLabel(QLabel):
 
@@ -47,15 +48,17 @@ class EditorWindow(QMainWindow):
 
         self.ui.central_widget.setFocusPolicy(Qt.NoFocus)
 
-        self.border_input: QWidget = hou.qt.InputField(hou.qt.InputField.FloatType, 1)        
+        self.border_input: InputField = hou.qt.InputField(hou.qt.InputField.FloatType, 1)        
         self.border_input.setWidth(100)
         self.border_input.editingFinished.connect(self.on_border_input_changed)
         self.border_input.setParent(self)
         self.border_input.setVisible(False)
 
-        self.grid_step_input: QWidget = hou.qt.InputField(hou.qt.InputField.FloatType, 2, "Grid Step")
+        self.grid_step_input: InputField = hou.qt.InputField(hou.qt.InputField.FloatType, 2, "Grid Step")
         self.ui.grid_settings.setLayout(QHBoxLayout())
         self.ui.grid_settings.layout().addWidget(self.grid_step_input)
+        self.grid_step_input.setValues((0.1, 0.1))
+        self.grid_step_input.editingFinished.connect(self.on_grid_step_changed)
 
         self.top_border_edit = False
 
@@ -65,7 +68,33 @@ class EditorWindow(QMainWindow):
         self.ui.looping_ramp.setChecked(self.ui.editor.looping_enabled)
         self.ui.looping_ramp.clicked.connect(self.looped_checked)
 
+        self.ui.grid_snap.setChecked(self.ui.editor.snapping_enabled)
+        self.ui.grid_snap.clicked.connect(self.on_grid_snap_checked)
+
         self.setWindowTitle("Ramp Editor")
+
+    def sync_settings_state(self) -> None:
+        self.ui.clamp_to_01.blockSignals(True)
+        self.ui.looping_ramp.blockSignals(True)
+        self.ui.grid_snap.blockSignals(True)
+
+        self.ui.clamp_to_01.setChecked(self.ui.editor.clamping_enabled)
+        self.ui.looping_ramp.setChecked(self.ui.looping_ramp)
+        self.ui.grid_snap.setChecked(self.ui.editor.snapping_enabled)
+
+        self.ui.grid_snap.blockSignals(False)
+        self.ui.clamp_to_01.blockSignals(False)
+        self.ui.looping_ramp.blockSignals(False)
+
+    def on_grid_step_changed(self, _) -> None:
+        values = self.grid_step_input.values()
+        self.ui.editor.grid_horizontal_step = values[0]
+        self.ui.editor.grid_vertical_step = values[1]
+        self.ui.editor.update()
+
+    
+    def on_grid_snap_checked(self, checked: bool) -> None:
+        self.ui.editor.snapping_enabled = checked
 
     def show_border_input(self, top: bool, pos: QPoint) -> None:
         pos = self.mapFromGlobal(pos)

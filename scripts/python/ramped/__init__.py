@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Optional
 import hou
 from .window import EditorWindow
 
-ramped_window: Optional[EditorWindow] = None
+ramped_window: EditorWindow | None = None
 
 def is_float_ramp(parms: list[hou.Parm]) -> bool:
     if not parms:
