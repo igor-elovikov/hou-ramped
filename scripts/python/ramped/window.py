@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt, Signal, Slot, QPoint, QRect
-from PySide2.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QWidget, QLabel, QLineEdit
-from PySide2.QtCore import QFile
-from PySide2.QtGui import QCloseEvent, QMouseEvent, QCursor, QFont, QFocusEvent
+from PySide2.QtCore import QSize, Qt, QPoint, QRect
+from PySide2.QtWidgets import QMainWindow, QHBoxLayout, QLineEdit
+from PySide2.QtGui import QCloseEvent
 
 from .ui import Ui_RampEditorWindow
 from .widgets import BorderLabel

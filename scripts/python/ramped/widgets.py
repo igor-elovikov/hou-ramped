@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
 
-import hdefereval
-import hou
-from PySide2.QtCore import QLineF, QPoint, QPointF, QRectF, QSize, Qt, Signal
-from PySide2.QtGui import (QBrush, QColor, QContextMenuEvent, QFocusEvent,
-                           QKeyEvent, QMouseEvent, QPainter, QPen,
-                           QResizeEvent)
-from PySide2.QtWidgets import (QFrame, QGraphicsEllipseItem, QGraphicsScene,
-                               QGraphicsView, QLabel, QMenu, QPushButton,
+from PySide2.QtCore import QPoint, Qt, Signal
+from PySide2.QtGui import (QMouseEvent)
+from PySide2.QtWidgets import (QFrame, QGraphicsView, QLabel, QMenu, QPushButton,
                                QVBoxLayout, QWidget, QSizePolicy)
 
-from .curve import BezierCurve
-from .logger import logger
-from .settings import (ADD_MARKER_COLOR, ADD_MARKER_RADIUS, GRID_FONT,
-                       SNAPPING_DISTANCE)
 
 
 class ContextMenu(QMenu):
