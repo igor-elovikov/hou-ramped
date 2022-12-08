@@ -1,6 +1,7 @@
 # Houdini Ramp Editor
 
 Editor for Houdini float ramps parameters
+Compatible with Houdini 19.5 Python 3.9 builds 
 
 ![Editor](img/title.png)
 
