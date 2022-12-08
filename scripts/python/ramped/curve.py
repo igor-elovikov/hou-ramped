@@ -354,12 +354,14 @@ class BezierCurve:
         self.set_clamped(True)
         self.set_looped(False)
         self.sync_ramp()
+        self.editor.window.sync_settings_state()
         self.editor.update_scene_rect()
         self.editor.fit_viewport()
 
     def load_from_ramp(self, ramp: hou.Ramp) -> None:
 
         self.clear()
+        self.editor.hide_message_box()
 
         keys: list[float] = ramp.keys()
         values: list[float] = ramp.values()
