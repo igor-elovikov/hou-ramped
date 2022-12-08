@@ -56,6 +56,7 @@ class BezierCurve:
         self.snap_position: Callable[[QPointF], None] = lambda _: None
 
         self.parm_set_by_curve = False
+        self.suspend_exporting = False
 
     def _get_ramp(self) -> hou.Ramp:
         num_keys = len(self.knots) * 3 - 2
@@ -337,9 +338,13 @@ class BezierCurve:
             self.on_knots_changed()
                  
     def export_to_parm(self):
-        self.parm_set_by_curve = True
-        self.parm.set(self.ramp)
-        self.parm_set_by_curve = False
+        if self.suspend_exporting:
+            return
+        logger.debug("Export to parm")
+        with hou.undos.group("Edit ramp"):
+            self.parm_set_by_curve = True
+            self.parm.set(self.ramp)
+            self.parm_set_by_curve = False
         #self.set_ramp_shape(ramp)
 
     def create_default(self) -> None:
@@ -452,6 +457,8 @@ class BezierCurve:
     def on_parm_changed(self):
         if not self.parm_set_by_curve:
             logger.debug("Sync changes from parm")
+            self.suspend_exporting = True
             self.load_from_ramp(self.parm.evalAsRamp())
             self.set_ramp_shape()
+            self.suspend_exporting = False
              
