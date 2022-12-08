@@ -41,7 +41,7 @@ class EditorWindow(QMainWindow):
         self.ui.central_widget.setFocusPolicy(Qt.NoFocus)
 
         self.border_input: InputField = hou.qt.InputField(hou.qt.InputField.FloatType, 1)        
-        self.border_input.setWidth(100)
+        self.border_input.setWidth(200)
         self.border_input.editingFinished.connect(self.on_border_input_changed)
         self.border_input.setParent(self)
         self.border_input.setVisible(False)
@@ -110,7 +110,7 @@ class EditorWindow(QMainWindow):
         line_edit.setFocus()
 
         self.border_input.setVisible(True)
-        self.border_input.setGeometry(QRect(pos, QSize(100, 40)))
+        self.border_input.setGeometry(QRect(pos, QSize(200, 40)))
     
     def set_bottom_line(self, value: float) -> None:
         self.border_input.setVisible(False)
