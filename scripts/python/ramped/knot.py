@@ -110,6 +110,7 @@ class BezierKnot:
 
         self.is_selected = False
         self.is_clicked_while_selected = False
+        self.control_moved_implicitly = False
 
         self.set_scene_positions()
 
@@ -324,8 +325,14 @@ class BezierKnot:
 
         left_limit = self.scene_position.x()
         if desired_position.x() <= left_limit + EPSILON:
-            desired_position.setX(left_limit + EPSILON)
-
+            if not self.control_moved_implicitly:
+                desired_position.setX(left_limit + EPSILON)
+            else:
+                if (desired_position - self.scene_position).manhattanLength() <= EPSILON:
+                    desired_position.setX(left_limit)
+                else:
+                    desired_position.setX(left_limit + EPSILON)
+                    
         self.set_out_control_scene_position(desired_position)
 
         return desired_position
@@ -353,7 +360,14 @@ class BezierKnot:
 
         right_limit = self.scene_position.x()
         if desired_position.x() >= right_limit - EPSILON:
-            desired_position.setX(right_limit - EPSILON)                
+            if not self.control_moved_implicitly:
+                desired_position.setX(right_limit - EPSILON)                
+            else:
+                if (desired_position - self.scene_position).manhattanLength() <= EPSILON:
+                    desired_position.setX(right_limit)
+                else:
+                    desired_position.setX(right_limit - EPSILON)
+
 
         self.set_in_control_scene_position(desired_position)   
 
@@ -404,8 +418,10 @@ class BezierKnot:
             self.set_knot_scene_position(position)
             self.knot_point_control.restore_pos_notifications()
 
+        self.control_moved_implicitly = True
         self.move_out_control(position)
         self.move_in_control(position)
+        self.control_moved_implicitly = False
 
 
     def on_move_knot(self, control: PointControl, offset: QPointF, position: QPointF) -> None:
