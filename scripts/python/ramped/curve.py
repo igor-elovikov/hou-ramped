@@ -10,7 +10,7 @@ from PySide2.QtWidgets import QGraphicsScene, QGraphicsPathItem
 from .control import PointControl
 from .logger import logger
 from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN
-from .knot import BezierKnot, KnotControl, KnotType
+from .knot import BezierKnot, KnotControl, KnotType, qpoint_length
 
 if TYPE_CHECKING:
     from .editor import RampEditor
@@ -272,8 +272,6 @@ class BezierCurve:
             gradient = middle_in - middle_out
             sampled_pos = middle_out + gradient * ratio
 
-            logger.debug(f"ratio: {ratio} current: {current_pos} sampled: {sampled_pos} knot: {knot_pos}")
-
             if knot_pos.x() <= sampled_pos.x() and knot_pos.x() >= current_pos.x():
                 logger.debug(f"Found U: {ratio}")
                 break
@@ -408,8 +406,14 @@ class BezierCurve:
                 in_offset = in_pos - knot_pos
                 out_offset = out_pos - knot_pos
                 self.add_knot(knot_pos, in_pos - knot_pos, out_offset)
-                if (in_offset.manhattanLength() < EPSILON or out_offset.manhattanLength() < EPSILON):
+                if (in_offset.manhattanLength() < EPSILON and out_offset.manhattanLength() < EPSILON):
                     self.knots[-1].set_type(KnotType.CORNER)
+                elif in_offset.manhattanLength() >= EPSILON and out_offset.manhattanLength() >= EPSILON:
+                    in_length = qpoint_length(in_offset)
+                    out_length = qpoint_length(out_offset)
+                    if math.fabs(in_length * out_length + QPointF.dotProduct(in_offset, out_offset)) > EPSILON:
+                        self.knots[-1].type = KnotType.BROKEN
+                    
 
             self.sync_ramp()
 

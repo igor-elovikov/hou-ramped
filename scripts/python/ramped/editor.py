@@ -88,6 +88,8 @@ class RampEditor(QGraphicsView):
         node: hou.Node = self.parm.node()
         node.addEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)
 
+        self.window.ui.label.setText(f"<b>Current Parameter:</b> {parm.name()} at {parm.path()}")
+
     def on_message_button(self) -> None:
         self.hide_message_box()
         self.curve.create_default()

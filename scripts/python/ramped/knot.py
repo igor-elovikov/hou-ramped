@@ -69,6 +69,7 @@ class BezierKnot:
             self.in_point_control.on_move = functools.partial(self.on_move_control, KnotControl.IN)
             self.in_point_control.on_mouse_release = self.finish_move_in_scene
             self.in_point_control.on_hovered = self.on_hovered
+            self.in_point_control.on_start_move = self.on_start_move_control
             self.in_handle = QGraphicsLineItem(QLineF(position, in_offset))
             self.in_handle.setPen(self.handles_pen)  
             self.scene.addItem(self.in_handle)          
@@ -81,6 +82,7 @@ class BezierKnot:
             self.out_point_control.on_move = functools.partial(self.on_move_control, KnotControl.OUT)
             self.out_point_control.on_mouse_release = self.finish_move_in_scene
             self.out_point_control.on_hovered = self.on_hovered
+            self.out_point_control.on_start_move = self.on_start_move_control
             self.out_handle = QGraphicsLineItem(QLineF(position, out_offset))
             self.out_handle.setPen(self.handles_pen)  
             self.scene.addItem(self.out_handle)          
@@ -436,6 +438,13 @@ class BezierKnot:
 
 
         self._on_points_changed()
+
+    def on_start_move_control(self, point_control: PointControl) -> None:
+        keyboard_modifiers = QGuiApplication.keyboardModifiers()
+        if (keyboard_modifiers & Qt.ShiftModifier):
+            self.type = KnotType.SMOOTH
+        elif (keyboard_modifiers & Qt.ControlModifier):
+            self.type = KnotType.BROKEN        
     
     def on_move_control(self, control: KnotControl, point_control: PointControl, offset: QPointF, position: QPointF) -> None:
 

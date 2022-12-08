@@ -27,8 +27,8 @@ class Ui_RampEditorWindow(object):
         self.label = QLabel(self.central_widget)
         self.label.setObjectName(u"label")
         font = QFont()
-        font.setBold(True)
-        font.setWeight(75)
+        font.setBold(False)
+        font.setWeight(50)
         self.label.setFont(font)
         self.label.setTextFormat(Qt.AutoText)
         self.label.setMargin(8)
@@ -79,10 +79,7 @@ class Ui_RampEditorWindow(object):
 
         self.settings = QGroupBox(self.central_widget)
         self.settings.setObjectName(u"settings")
-        font1 = QFont()
-        font1.setBold(False)
-        font1.setWeight(50)
-        self.settings.setFont(font1)
+        self.settings.setFont(font)
         self.settings.setFlat(False)
         self.settings.setCheckable(False)
         self.verticalLayout_2 = QVBoxLayout(self.settings)
@@ -91,7 +88,7 @@ class Ui_RampEditorWindow(object):
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.clamp_to_01 = QCheckBox(self.settings)
         self.clamp_to_01.setObjectName(u"clamp_to_01")
-        self.clamp_to_01.setFont(font1)
+        self.clamp_to_01.setFont(font)
 
         self.horizontalLayout.addWidget(self.clamp_to_01)
 
