@@ -208,6 +208,9 @@ class RampEditor(QGraphicsView):
 
         if top < bottom:
             top = bottom + 1.0
+
+        if top == bottom:
+            bottom = top - 1.0
         
         self.bottom_border = bottom
         self.top_border = top
