@@ -267,7 +267,8 @@ class RampEditor(QGraphicsView):
             return
 
         for knot in self.curve.selection:
-            knot.set_type(KnotType.SMOOTH)
+            if knot.type is not KnotType.SMOOTH:
+                knot.set_type(KnotType.SMOOTH)
 
         self.curve.reindex_knots()
         self.curve.sync_ramp()
@@ -279,7 +280,8 @@ class RampEditor(QGraphicsView):
             return
 
         for knot in self.curve.selection:
-            knot.set_type(KnotType.CORNER)
+            if knot.type is not KnotType.CORNER:
+                knot.set_type(KnotType.CORNER)
 
         self.curve.reindex_knots()
         self.curve.sync_ramp()
