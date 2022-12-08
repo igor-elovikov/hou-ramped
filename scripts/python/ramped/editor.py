@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 import hou
 import hdefereval
@@ -8,19 +8,15 @@ import hdefereval
 from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt
 from PySide2.QtGui import (QBrush, QColor, QContextMenuEvent, QMouseEvent,
                            QPainter, QPen, QResizeEvent, QFocusEvent, QKeyEvent)
-from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGraphicsEllipseItem
+from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGraphicsEllipseItem, QVBoxLayout
 
 from .curve import BezierCurve
 from .logger import logger
 from .settings import ADD_MARKER_RADIUS, ADD_MARKER_COLOR, GRID_FONT, SNAPPING_DISTANCE
+from .widgets import ContextMenu, EditorMessage
 
-
-class ContextMenu(QMenu):
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        self.setAttribute(Qt.WA_NoMouseReplay)
-        super().mousePressEvent(event)
-                
+if TYPE_CHECKING:
+    from .window import EditorWindow
     
 
 class RampEditor(QGraphicsView):
@@ -44,7 +40,10 @@ class RampEditor(QGraphicsView):
         self.add_marker = QGraphicsEllipseItem(0, 0, ADD_MARKER_RADIUS * 2, ADD_MARKER_RADIUS * 2)
         self.add_marker.setBrush(QBrush(QColor(*ADD_MARKER_COLOR)))
         self.add_marker.setPen(QPen(Qt.transparent))
+        self.add_marker.setVisible(False)
         self.editor_scene.addItem(self.add_marker)
+
+        self.window: EditorWindow | None = None
 
         self.grid_horizontal_step = 0.1
         self.grid_vertical_step = 0.1
@@ -61,18 +60,46 @@ class RampEditor(QGraphicsView):
         self.changed_flag = False
 
         self.snapping_enabled = True
-        self.auto_fit_enabled = True
+        self.auto_extend_enabled = True
         self.clamping_enabled = True
         self.looping_enabled = False
 
+        self.setLayout(QVBoxLayout())
+
+        self.message_box = EditorMessage()
+        self.message_box.button.clicked.connect(self.on_message_button)
+        self.message_box.hide()
+
+        self.layout().setAlignment(Qt.AlignHCenter)
+        self.layout().addWidget(self.message_box)
+
+
     def attach_parm(self, parm: hou.Parm) -> None:
         self.remove_callbacks()
+        self.hide_message_box()
+
+        self.curve.set_clamped(False)
+        self.curve.set_looped(False)
+        self.window.sync_settings_state()
+
         self.parm = parm
         self.curve.parm = parm
         self.load_from_ramp(parm.evalAsRamp())
         node: hou.Node = self.parm.node()
         node.addEventCallback((hou.nodeEventType.ParmTupleChanged, ), self.on_parm_changed)
-        
+
+    def on_message_button(self) -> None:
+        self.hide_message_box()
+
+    def show_default_ramp_message(self, message: str) -> None:
+        self.window.ui.settings.setDisabled(True)
+        self.message_box.message.setText(message)
+        self.message_box.show()
+
+    def hide_message_box(self) -> None:
+        self.message_box.hide()
+        self.window.ui.settings.setEnabled(True)
+    
 
     def on_parm_changed(self, **kwargs) -> None:
         if self.curve.parm_set_by_curve:
@@ -144,7 +171,7 @@ class RampEditor(QGraphicsView):
     def load_from_ramp(self, ramp: hou.Ramp) -> None:
 
         self.curve.load_from_ramp(ramp)  
-        self.fit_to_viewport()
+        self.extend_viewport()
         self.curve.set_clamped(self.clamping_enabled)
 
     def calculate_scene_borders(self) -> None:
@@ -164,7 +191,6 @@ class RampEditor(QGraphicsView):
     def resizeEvent(self, event: QResizeEvent):
         
         size: QSize = event.size()
-        logger.debug(f"Resize: [{size.width()}x{size.height()}]")
         self.curve.scene_width = size.width()
         self.curve.scene_height = size.height()
 
@@ -189,8 +215,15 @@ class RampEditor(QGraphicsView):
 
         self.on_borders_changed(bottom, top)
 
-    def fit_to_viewport(self):
+    def extend_viewport(self):
+        if not self.curve.knots:
+            return
         self.set_borders(min(self.curve.min_y, self.curve.bottom_border), max(self.curve.max_y, self.curve.top_border))
+
+    def fit_viewport(self):
+        if not self.curve.knots:
+            return
+        self.set_borders(self.curve.min_y, self.curve.max_y)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self.curve.ramp is not None:

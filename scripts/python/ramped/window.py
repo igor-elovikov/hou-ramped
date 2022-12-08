@@ -4,23 +4,14 @@ from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt, Signal, Slot, QPo
 from PySide2.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QWidget, QLabel, QLineEdit
 from PySide2.QtCore import QFile
 from PySide2.QtGui import QCloseEvent, QMouseEvent, QCursor, QFont, QFocusEvent
+
 from .ui import Ui_RampEditorWindow
+from .widgets import BorderLabel
 
 import functools
 
 import hou
 from houpythonportion.qt import InputField
-
-class BorderLabel(QLabel):
-
-    double_clicked = Signal(QPoint)
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-
-    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
-        self.double_clicked.emit(self.mapToGlobal(self.pos()))
-        return super().mouseDoubleClickEvent(event)
 
 class EditorWindow(QMainWindow):
     def __init__(self):
@@ -29,6 +20,7 @@ class EditorWindow(QMainWindow):
         self.ui = Ui_RampEditorWindow()
         self.ui.setupUi(self)
         self.ui.editor.on_borders_changed = self.on_boders_changed
+        self.ui.editor.window = self
         
         self.top_line_label = BorderLabel()
         self.top_line_label.setText("1.0")
@@ -71,17 +63,25 @@ class EditorWindow(QMainWindow):
         self.ui.grid_snap.setChecked(self.ui.editor.snapping_enabled)
         self.ui.grid_snap.clicked.connect(self.on_grid_snap_checked)
 
+        self.ui.auto_extend.setChecked(self.ui.editor.auto_extend_enabled)
+        self.ui.auto_extend.clicked.connect(self.on_extend_checked)
+
+        self.ui.fit_button.clicked.connect(self.ui.editor.fit_viewport)
+
         self.setWindowTitle("Ramp Editor")
 
     def sync_settings_state(self) -> None:
         self.ui.clamp_to_01.blockSignals(True)
         self.ui.looping_ramp.blockSignals(True)
         self.ui.grid_snap.blockSignals(True)
+        self.ui.auto_extend.blockSignals(True)
 
         self.ui.clamp_to_01.setChecked(self.ui.editor.clamping_enabled)
-        self.ui.looping_ramp.setChecked(self.ui.looping_ramp)
+        self.ui.looping_ramp.setChecked(self.ui.editor.looping_enabled)
         self.ui.grid_snap.setChecked(self.ui.editor.snapping_enabled)
+        self.ui.auto_extend.setChecked(self.ui.editor.auto_extend_enabled)
 
+        self.ui.auto_extend.blockSignals(False)
         self.ui.grid_snap.blockSignals(False)
         self.ui.clamp_to_01.blockSignals(False)
         self.ui.looping_ramp.blockSignals(False)
@@ -91,6 +91,9 @@ class EditorWindow(QMainWindow):
         self.ui.editor.grid_horizontal_step = values[0]
         self.ui.editor.grid_vertical_step = values[1]
         self.ui.editor.update()
+
+    def on_extend_checked(self, checked: bool) -> None:
+        self.ui.editor.auto_extend_enabled = checked
 
     
     def on_grid_snap_checked(self, checked: bool) -> None:

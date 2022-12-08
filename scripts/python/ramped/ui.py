@@ -79,12 +79,19 @@ class Ui_RampEditorWindow(object):
 
         self.settings = QGroupBox(self.central_widget)
         self.settings.setObjectName(u"settings")
+        font1 = QFont()
+        font1.setBold(False)
+        font1.setWeight(50)
+        self.settings.setFont(font1)
+        self.settings.setFlat(False)
+        self.settings.setCheckable(False)
         self.verticalLayout_2 = QVBoxLayout(self.settings)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.clamp_to_01 = QCheckBox(self.settings)
         self.clamp_to_01.setObjectName(u"clamp_to_01")
+        self.clamp_to_01.setFont(font1)
 
         self.horizontalLayout.addWidget(self.clamp_to_01)
 
@@ -108,10 +115,15 @@ class Ui_RampEditorWindow(object):
 
         self.horizontalLayout_2.addWidget(self.grid_settings)
 
-        self.auto_fit = QCheckBox(self.settings)
-        self.auto_fit.setObjectName(u"auto_fit")
+        self.auto_extend = QCheckBox(self.settings)
+        self.auto_extend.setObjectName(u"auto_extend")
 
-        self.horizontalLayout_2.addWidget(self.auto_fit)
+        self.horizontalLayout_2.addWidget(self.auto_extend)
+
+        self.fit_button = QPushButton(self.settings)
+        self.fit_button.setObjectName(u"fit_button")
+
+        self.horizontalLayout_2.addWidget(self.fit_button)
 
 
         self.verticalLayout_2.addLayout(self.horizontalLayout_2)
@@ -133,6 +145,7 @@ class Ui_RampEditorWindow(object):
         self.clamp_to_01.setText(QCoreApplication.translate("RampEditorWindow", u"Clamp to [0:1]", None))
         self.looping_ramp.setText(QCoreApplication.translate("RampEditorWindow", u"Looping Ramp", None))
         self.grid_snap.setText(QCoreApplication.translate("RampEditorWindow", u"Grid Snapping", None))
-        self.auto_fit.setText(QCoreApplication.translate("RampEditorWindow", u"Auto Fit", None))
+        self.auto_extend.setText(QCoreApplication.translate("RampEditorWindow", u"Auto Extend Viewport", None))
+        self.fit_button.setText(QCoreApplication.translate("RampEditorWindow", u"Fit Viewport To Curve", None))
     # retranslateUi
 

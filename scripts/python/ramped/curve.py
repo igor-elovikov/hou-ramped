@@ -10,7 +10,7 @@ from PySide2.QtWidgets import QGraphicsScene, QGraphicsPathItem
 from .control import PointControl
 from .logger import logger
 from .settings import EPSILON, SHAPE_GRADIENT, SHAPE_STEPS, SHAPE_STEP, SHAPE_PEN
-from .knot import BezierKnot, KnotControl
+from .knot import BezierKnot, KnotControl, KnotType
 
 if TYPE_CHECKING:
     from .editor import RampEditor
@@ -146,6 +146,10 @@ class BezierCurve:
         for knot in self.knots:
             knot.remove_from_scene()
         self.knots.clear()
+        path = QPainterPath()
+        self.ramp_shape.setPath(path)
+        self.ramp_shape.update()
+        self.ramp = None
 
     def add_knot(self, position: QPointF, in_offset: Optional[QPointF], out_offset: Optional[QPointF], insert_index: int = -1) -> None:
         index = len(self.knots)
@@ -180,6 +184,8 @@ class BezierCurve:
         self.ramp = self._get_ramp()
 
     def set_ramp_shape(self, ramp: Optional[hou.Ramp] = None) -> None:
+        if not self.knots:
+            return
 
         if ramp is None: 
             ramp = self.ramp
@@ -299,6 +305,10 @@ class BezierCurve:
     def set_clamped(self, is_clamped: bool) -> None:
         self.editor.clamping_enabled = is_clamped
         logger.debug(f"Set curve clamped: {is_clamped}")
+
+        if not self.knots:
+            return
+
         if is_clamped:
             self.knots[0].limit_horizontally = True
             self.knots[0].limit_x = 0.0
@@ -311,10 +321,16 @@ class BezierCurve:
             self.knots[0].limit_horizontally = False
             self.knots[-1].limit_horizontally = False
 
+            if self.editor.looping_enabled:
+                self.set_looped(False)
+                self.editor.window.sync_settings_state()
+
     def set_looped(self, is_looped: bool) -> None:
         self.editor.looping_enabled = is_looped
         if is_looped:
             self.set_clamped(True)
+            if not self.knots:
+                return
             self.knots[0].on_move_control(KnotControl.OUT, 
                             self.knots[0].out_point_control, 
                             QPointF(0, 0), 
@@ -328,40 +344,106 @@ class BezierCurve:
         self.parm_set_by_curve = False
         #self.set_ramp_shape(ramp)
 
+    def create_default(self) -> None:
+        self.clear()
+        self.add_knot(QPointF(0.0, 0.0), None, QPointF(ONE_THIRD, ONE_THIRD))
+        self.add_knot(QPointF(1.0, 1.0), QPointF(-ONE_THIRD, -ONE_THIRD), None)
+        self.set_clamped(True)
+        self.set_looped(False)
+        self.sync_ramp()
+        self.editor.update_scene_rect()
+        self.editor.fit_viewport()
+
     def load_from_ramp(self, ramp: hou.Ramp) -> None:
 
         self.clear()
 
         keys: list[float] = ramp.keys()
         values: list[float] = ramp.values()
+        basis: list[hou.rampBasis] = ramp.basis()
 
         num_keys = len(keys)
         num_knots = 2 + (num_keys - 4) // 3
 
         logger.debug(f"Ramp num knots: {num_knots}")
 
-        for i in range(num_knots):
+        if all((b == hou.rampBasis.Bezier for b in basis)):
 
-            if i == 0:
-                knot_pos = QPointF(keys[0], values[0])
-                out_pos = QPointF(keys[1], values[1])
-                self.add_knot(knot_pos, None, out_pos - knot_pos)
-                continue
+            logger.debug("Load bezier ramp")
 
-            if i == (num_knots - 1):
-                index = (num_knots - 1) * 3
+            is_supported = True
+            is_supported &= ((num_keys - 4) % 3 == 0)
+            is_supported &= (num_knots >= 2)
+
+            if not is_supported:
+                self.editor.show_default_ramp_message("Can't load ramp. <br>\
+                    Bezier ramp doesn't have all control points. <br>\
+                    You need two points for first and last knots and three points for every knot in between. <br> \
+                    Create default ramp?")
+                return
+        
+            for i in range(num_knots):
+
+                if i == 0:
+                    knot_pos = QPointF(keys[0], values[0])
+                    out_pos = QPointF(keys[1], values[1])
+                    self.add_knot(knot_pos, None, out_pos - knot_pos)
+                    if ((out_pos - knot_pos).manhattanLength() < EPSILON):
+                        self.knots[-1].set_type(KnotType.CORNER)
+                    continue
+
+                if i == (num_knots - 1):
+                    index = (num_knots - 1) * 3
+                    knot_pos = QPointF(keys[index], values[index])
+                    in_pos = QPointF(keys[index-1], values[index-1])
+                    self.add_knot(knot_pos, in_pos - knot_pos, None)
+                    if ((in_pos - knot_pos).manhattanLength() < EPSILON):
+                        self.knots[-1].set_type(KnotType.CORNER)
+                    continue
+
+                index = i * 3
                 knot_pos = QPointF(keys[index], values[index])
                 in_pos = QPointF(keys[index-1], values[index-1])
-                self.add_knot(knot_pos, in_pos - knot_pos, None)
-                continue
+                out_pos = QPointF(keys[index+1], values[index+1])
+                in_offset = in_pos - knot_pos
+                out_offset = out_pos - knot_pos
+                self.add_knot(knot_pos, in_pos - knot_pos, out_offset)
+                if (in_offset.manhattanLength() < EPSILON or out_offset.manhattanLength() < EPSILON):
+                    self.knots[-1].set_type(KnotType.CORNER)
 
-            index = i * 3
-            knot_pos = QPointF(keys[index], values[index])
-            in_pos = QPointF(keys[index-1], values[index-1])
-            out_pos = QPointF(keys[index+1], values[index+1])
-            self.add_knot(knot_pos, in_pos - knot_pos, out_pos - knot_pos)
+            self.sync_ramp()
 
-        self.sync_ramp()  
+            if self.knots[0].position.x() == 0.0 and self.knots[-1].position.x() == 1.0:
+                self.set_clamped(True)
+            else:
+                self.set_clamped(False)
+
+            self.editor.window.sync_settings_state()
+
+
+            return
+
+        if all((b == hou.rampBasis.Linear for b in basis)):
+            logger.debug("Load linear ramp")
+            for index, (value, key) in enumerate(zip(values, keys)):
+
+                out_pos = QPointF(0.0, 0.0)
+                in_pos = QPointF(0.0, 0.0)
+                if index == 0:
+                    in_pos = None
+                if index == len(keys) - 1:
+                    out_pos = None
+
+                self.add_knot(QPointF(key, value), in_pos, out_pos)
+                self.knots[-1].set_type(KnotType.CORNER)
+
+            self.sync_ramp()
+
+            return
+
+        self.editor.show_default_ramp_message("Can't load ramp. <br>\
+            Editor supports only Linear or Bezier ramps (without mixing). <br> \
+            Create default ramp?")
         
     def on_parm_changed(self):
         if not self.parm_set_by_curve:

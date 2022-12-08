@@ -183,11 +183,13 @@ class BezierKnot:
         if self.type is KnotType.SMOOTH or self.type is KnotType.BROKEN:
             self.set_type(KnotType.CORNER)
             self._on_points_changed()
+            self.curve.export_to_parm()
             return
 
         if self.type is KnotType.CORNER:
             self.set_type(KnotType.SMOOTH)
             self._on_points_changed()
+            self.curve.export_to_parm()
             return
 
     def on_hovered(self, point_control: PointControl, state: bool) -> None:
@@ -486,8 +488,8 @@ class BezierKnot:
             for knot in self.curve.selection:
                 knot.sync_scene_offsets()
                 knot.remap_all_from_scene_positions()
-            if self.curve.editor.auto_fit_enabled:
-                self.curve.editor.fit_to_viewport()                
+            if self.curve.editor.auto_extend_enabled:
+                self.curve.editor.extend_viewport()                
             self.curve.export_to_parm()
             logger.debug("Finish moving knot")
         elif self.is_clicked_while_selected:

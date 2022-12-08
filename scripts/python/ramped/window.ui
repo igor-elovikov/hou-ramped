@@ -104,14 +104,32 @@
     </item>
     <item>
      <widget class="QGroupBox" name="settings">
+      <property name="font">
+       <font>
+        <weight>50</weight>
+        <bold>false</bold>
+       </font>
+      </property>
       <property name="title">
        <string>Settings</string>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+      <property name="checkable">
+       <bool>false</bool>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
           <widget class="QCheckBox" name="clamp_to_01">
+           <property name="font">
+            <font>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
+           </property>
            <property name="text">
             <string>Clamp to [0:1]</string>
            </property>
@@ -139,9 +157,16 @@
           <widget class="QWidget" name="grid_settings" native="true"/>
          </item>
          <item>
-          <widget class="QCheckBox" name="auto_fit">
+          <widget class="QCheckBox" name="auto_extend">
            <property name="text">
-            <string>Auto Fit</string>
+            <string>Auto Extend Viewport</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="fit_button">
+           <property name="text">
+            <string>Fit Viewport To Curve</string>
            </property>
           </widget>
          </item>
