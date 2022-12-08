@@ -383,17 +383,17 @@ class BezierKnot:
 
         out_of_limits = False
 
-        if position.x() >= right_limit:
+        if position.x() >= right_limit - EPSILON:
             out_of_limits = True
             position.setX(right_limit - EPSILON)
             if self.is_last:
                 position.setX(right_limit)
 
-        if position.x() <= left_limit:
+        if position.x() <= left_limit + EPSILON:
             out_of_limits = True
             position.setX(left_limit + EPSILON)
             if self.is_first:
-                position.setX(left_limit)
+                position.setX(left_limit + EPSILON)
 
         if self.limit_horizontally:
             out_of_limits = True
