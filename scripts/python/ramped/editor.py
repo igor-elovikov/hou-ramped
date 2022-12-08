@@ -5,12 +5,12 @@ from typing import Callable, TYPE_CHECKING
 import hou
 import hdefereval
 
-from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt
+from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt, Slot
 from PySide2.QtGui import (QBrush, QColor, QContextMenuEvent, QMouseEvent,
                            QPainter, QPen, QResizeEvent, QFocusEvent, QKeyEvent)
 from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGraphicsEllipseItem, QVBoxLayout
 
-from .curve import BezierCurve
+from .curve import BezierCurve, KnotType
 from .logger import logger
 from .settings import ADD_MARKER_RADIUS, ADD_MARKER_COLOR, GRID_FONT, SNAPPING_DISTANCE
 from .widgets import ContextMenu, EditorMessage
@@ -90,9 +90,11 @@ class RampEditor(QGraphicsView):
 
     def on_message_button(self) -> None:
         self.hide_message_box()
+        self.curve.create_default()
 
     def show_default_ramp_message(self, message: str) -> None:
         self.window.ui.settings.setDisabled(True)
+        self.message_box.button.setText("Create Default Ramp")
         self.message_box.message.setText(message)
         self.message_box.show()
 
@@ -220,6 +222,7 @@ class RampEditor(QGraphicsView):
             return
         self.set_borders(min(self.curve.min_y, self.curve.bottom_border), max(self.curve.max_y, self.curve.top_border))
 
+    @Slot()
     def fit_viewport(self):
         if not self.curve.knots:
             return
@@ -246,7 +249,7 @@ class RampEditor(QGraphicsView):
             ramp_pos = scene_pos.x() / self.curve.scene_width
             self.curve.add_knot_to_curve(ramp_pos)
 
-        if self.curve.hovered_control is None:
+        if self.curve.hovered_control is None and event.buttons() == Qt.LeftButton:
             self.curve.clear_selection()
             
         return super().mousePressEvent(event)  
@@ -255,16 +258,57 @@ class RampEditor(QGraphicsView):
         if event.key() == Qt.Key_Z and event.modifiers() & Qt.ControlModifier:
             logger.debug("Perform Houdini Undo")
             hou.undos.performUndo()
+        if event.key() == Qt.Key_Delete:
+            self.delete_selected()
         return super().keyPressEvent(event)
+
+    def make_smooth(self) -> None:
+        if not self.curve.selection:
+            return
+
+        for knot in self.curve.selection:
+            knot.set_type(KnotType.SMOOTH)
+
+        self.curve.reindex_knots()
+        self.curve.sync_ramp()
+        self.update_scene_rect()
+        self.curve.export_to_parm()
+
+    def make_corner(self) -> None:
+        if not self.curve.selection:
+            return
+
+        for knot in self.curve.selection:
+            knot.set_type(KnotType.CORNER)
+
+        self.curve.reindex_knots()
+        self.curve.sync_ramp()
+        self.update_scene_rect()
+        self.curve.export_to_parm()                
+
+    def delete_selected(self) -> None:
+        if not self.curve.selection:
+            return
+
+        for knot in self.curve.selection:
+            if not (knot.is_first or knot.is_last):
+                knot.remove_from_scene()
+                self.curve.knots.remove(knot)
+
+        self.curve.reindex_knots()
+        self.curve.sync_ramp()
+        self.update_scene_rect()
+        self.curve.export_to_parm()
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         menu = ContextMenu(self)
         menu.setStyleSheet(hou.qt.styleSheet())
         
-        menu.addAction("Set")
-        menu.addAction("Get")
+        menu.addAction("Selection To Corner Type", self.make_corner)
+        menu.addAction("Selection To Smooth Type", self.make_smooth)
+        menu.addAction("Delete selected", self.delete_selected)
         menu.addSeparator()
-        menu.addAction("Test")
+        menu.addAction("Fit Viewport", self.fit_viewport)
         menu.popup(event.globalPos())
     
 
