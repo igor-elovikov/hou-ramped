@@ -7,8 +7,8 @@ import hdefereval
 
 from PySide2.QtCore import QLineF, QPointF, QRectF, QSize, Qt, Slot
 from PySide2.QtGui import (QBrush, QColor, QContextMenuEvent, QMouseEvent,
-                           QPainter, QPen, QResizeEvent, QFocusEvent, QKeyEvent)
-from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QMenu, QGraphicsEllipseItem, QVBoxLayout
+                           QPainter, QPen, QResizeEvent, QKeyEvent)
+from PySide2.QtWidgets import QGraphicsScene, QGraphicsView, QWidget, QGraphicsEllipseItem, QVBoxLayout
 
 from .curve import BezierCurve, KnotType
 from .logger import logger
