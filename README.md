@@ -1,3 +1,5 @@
+**DEPRECATED. Since Houdini 20.0 ramp editor natively supports this**
+
 # Houdini Ramp Editor
 
 Editor for Houdini float ramps parameters
